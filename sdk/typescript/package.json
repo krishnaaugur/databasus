@@ -1,0 +1,21 @@
+{
+  "name": "@databasus/sdk",
+  "version": "1.0.0",
+  "description": "Official TypeScript/JavaScript SDK for Databasus automated multi-tenant database backup and restore",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "databasus",
+    "backup",
+    "restore",
+    "postgres",
+    "multitenant",
+    "sdk"
+  ],
+  "author": "Databasus",
+  "license": "MIT"
+}
