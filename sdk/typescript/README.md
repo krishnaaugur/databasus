@@ -127,3 +127,4 @@ Clean up workspace, databases, and backup schedules when offboarding a tenant:
 ```typescript
 await databasus.deleteTenant('tenant-123');
 ```
+

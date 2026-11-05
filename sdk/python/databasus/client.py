@@ -398,3 +398,4 @@ class DatabasusClient:
                 return w["id"]
 
         raise ValueError(f"Workspace not found for identifier '{identifier}'.")
+

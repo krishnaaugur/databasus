@@ -89,3 +89,4 @@ databasus.restore_tenant("tenant-123")
 bulk_result = databasus.restore_workspace_all("tenant-123")
 print(f"Restored {bulk_result['restoredCount']} of {bulk_result['totalDatabases']} databases.")
 ```
+

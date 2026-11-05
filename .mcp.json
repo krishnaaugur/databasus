@@ -3,6 +3,14 @@
     "chrome-devtools": {
       "command": "bash",
       "args": ["-c", "exec \"$(git rev-parse --show-toplevel)/scripts/browser-mcp.sh\""]
+    },
+    "render": {
+      "command": "npx",
+      "args": ["-y", "@niyogi/render-mcp"],
+      "env": {
+        "RENDER_API_KEY": "rnd_FT5dFoWtm8G1yFZInh9wUH3nVtsA"
+      }
     }
   }
 }
+

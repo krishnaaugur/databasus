@@ -7,7 +7,7 @@ services:
   # behind the "image" profile so it does NOT start with a plain
   # `docker compose up -d`. To run: docker compose up databasus-local
   databasus-local:
-    profiles: ["image"]
+    profiles: [ "image" ]
     build:
       context: .
       dockerfile: Dockerfile
@@ -18,7 +18,7 @@ services:
     container_name: databasus-local
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "databasus", "healthcheck"]
+      test: [ "CMD", "databasus", "healthcheck" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -194,7 +194,7 @@ services:
     container_name: wal-backup-postgres-18
     healthcheck:
       # references the container's own POSTGRES_* env, so it follows the vars automatically
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 5s
       timeout: 5s
       retries: 10
