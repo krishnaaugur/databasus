@@ -1,0 +1,30 @@
+import { DatabasusMountOptions, DatabasusWidgetInstance } from '../types';
+export declare class DatabasusWidget implements DatabasusWidgetInstance {
+    readonly container: HTMLElement;
+    readonly shadowRoot: ShadowRoot;
+    private client;
+    private options;
+    private timerId?;
+    private toastTimerId?;
+    private statusData;
+    private isLoading;
+    private isTriggering;
+    private isRestoring;
+    private modalState;
+    private toastState;
+    constructor(container: HTMLElement, options: DatabasusMountOptions);
+    refresh(): Promise<void>;
+    private refreshSilently;
+    private fetchData;
+    destroy(): void;
+    private showToast;
+    private handleTriggerBackup;
+    private handleToggleSchedule;
+    private openRestoreModal;
+    private closeRestoreModal;
+    private handleConfirmRestore;
+    private formatBytes;
+    private formatRelativeTime;
+    private render;
+    private attachEventListeners;
+}

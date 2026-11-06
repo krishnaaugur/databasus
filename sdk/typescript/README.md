@@ -1,6 +1,6 @@
 # @databasus/sdk
 
-Official TypeScript / JavaScript SDK for **Databasus** automated multi-tenant database backup and restore.
+Official TypeScript / JavaScript SDK for **Databasus** automated multi-tenant database backup, disaster recovery, and embeddable UI components.
 
 ## Installation
 
@@ -12,9 +12,73 @@ pnpm add @databasus/sdk
 
 ---
 
-## Quickstart
+## Embeddable UI Widget (Drop-in UI)
 
-Initialize the client with your Databasus URL and credentials:
+Embed the complete Databasus backup & recovery dashboard into **any** web application (React, Vue, Svelte, Angular, or plain HTML) with complete CSS isolation via Shadow DOM.
+
+### 1. In Vanilla JavaScript / Any HTML:
+
+```html
+<div id="backup-container"></div>
+
+<script type="module">
+  import { Databasus } from '@databasus/sdk';
+
+  const widget = Databasus.mount('#backup-container', {
+    tenantId: 'tenant-123',
+    apiUrl: 'https://databasus-5nzt.onrender.com', // or your backend proxy
+    theme: 'dark', // 'dark' | 'light' | 'auto'
+    onBackupTriggered: (backupId) => console.log('Backup started:', backupId),
+    onRestoreTriggered: (backupId) => console.log('Restore started:', backupId),
+  });
+
+  // When tearing down or navigating away:
+  // widget.destroy();
+</script>
+```
+
+### 2. In React / Next.js:
+
+```tsx
+import { useEffect, useRef } from 'react';
+import { Databasus } from '@databasus/sdk';
+
+export function TenantBackupSection({ tenantId }: { tenantId: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const widget = Databasus.mount(containerRef.current, {
+      tenantId,
+      apiUrl: process.env.NEXT_PUBLIC_DATABASUS_URL,
+      theme: 'dark',
+    });
+
+    return () => widget.destroy();
+  }, [tenantId]);
+
+  return <div ref={containerRef} className="w-full" />;
+}
+```
+
+### 3. As a Custom Web Component:
+
+```html
+<script type="module" src="node_modules/@databasus/sdk/dist/index.js"></script>
+
+<databasus-widget 
+  tenant-id="tenant-123" 
+  api-url="https://databasus-5nzt.onrender.com"
+  theme="dark"
+></databasus-widget>
+```
+
+---
+
+## Headless API Client
+
+For backend servers, CLI tools, or custom UI flows, use the headless `DatabasusClient`:
 
 ```typescript
 import { DatabasusClient } from '@databasus/sdk';
@@ -28,7 +92,7 @@ const databasus = new DatabasusClient({
     region: process.env.BACKUP_S3_REGION!,
     accessKey: process.env.BACKUP_S3_ACCESS_KEY!,
     secretKey: process.env.BACKUP_S3_SECRET_KEY!,
-    endpoint: process.env.BACKUP_S3_ENDPOINT, // Optional (for MinIO, Cloudflare R2, etc.)
+    endpoint: process.env.BACKUP_S3_ENDPOINT, // Optional (for Supabase Storage, MinIO, Cloudflare R2, etc.)
   },
 });
 ```
@@ -127,4 +191,3 @@ Clean up workspace, databases, and backup schedules when offboarding a tenant:
 ```typescript
 await databasus.deleteTenant('tenant-123');
 ```
-

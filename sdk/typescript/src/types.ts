@@ -120,3 +120,27 @@ export interface WorkspaceBulkRestoreResult {
   results: SingleDatabaseRestoreResult[];
 }
 
+
+export interface DatabasusMountOptions {
+  tenantId: string;
+  apiUrl?: string;
+  token?: string;
+  email?: string;
+  password?: string;
+  theme?: 'dark' | 'light' | 'auto';
+  title?: string;
+  refreshIntervalMs?: number;
+  showTriggerBackup?: boolean;
+  showRestoreAction?: boolean;
+  showScheduleToggle?: boolean;
+  onBackupTriggered?: (backupId: string) => void;
+  onRestoreTriggered?: (backupId: string) => void;
+  onError?: (error: Error) => void;
+}
+
+export interface DatabasusWidgetInstance {
+  readonly container: HTMLElement;
+  readonly shadowRoot: ShadowRoot;
+  refresh(): Promise<void>;
+  destroy(): void;
+}

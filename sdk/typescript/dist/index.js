@@ -14,5 +14,16 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Databasus = void 0;
 __exportStar(require("./types"), exports);
 __exportStar(require("./client"), exports);
+__exportStar(require("./ui/widget"), exports);
+__exportStar(require("./ui/mount"), exports);
+require("./ui/custom-element");
+const client_1 = require("./client");
+const mount_1 = require("./ui/mount");
+exports.Databasus = {
+    Client: client_1.DatabasusClient,
+    mount: mount_1.mount,
+};
+exports.default = exports.Databasus;
