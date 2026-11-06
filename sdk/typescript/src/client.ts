@@ -641,6 +641,15 @@ export class DatabasusClient {
       ? `${s3Config.prefix.replace(/\/+$/, '')}/${storageIdentifier}`
       : `tenants/${storageIdentifier}`;
 
+    let endpoint = s3Config.endpoint || '';
+    if (endpoint) {
+      if (endpoint.includes('amazonaws.com')) {
+        endpoint = '';
+      } else {
+        endpoint = endpoint.replace(/^https?:\/\//, '').split('/')[0];
+      }
+    }
+
     const created = await this.request<{ id: string }>('/api/v1/storages', {
       method: 'POST',
       body: {
@@ -652,7 +661,7 @@ export class DatabasusClient {
           s3Region: s3Config.region,
           s3AccessKey: s3Config.accessKey,
           s3SecretKey: s3Config.secretKey,
-          s3Endpoint: s3Config.endpoint || '',
+          s3Endpoint: endpoint,
           s3Prefix: prefix,
           s3UseVirtualHostedStyle: s3Config.useVirtualHostedStyle ?? false,
           skipTLSVerify: s3Config.skipTLSVerify ?? false,
@@ -735,6 +744,7 @@ export class DatabasusClient {
       body: {
         databaseId: params.databaseId,
         storageId: params.storageId,
+        storage: { id: params.storageId },
         isBackupsEnabled: params.isBackupEnabled,
         retentionPolicyType: 'TIME_PERIOD',
         retentionTimePeriod: '30d',
