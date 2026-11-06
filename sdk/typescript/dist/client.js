@@ -1,6 +1,31 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatabasusClient = void 0;
+exports.parseDatabaseUrl = parseDatabaseUrl;
+function parseDatabaseUrl(urlStr) {
+    const parsed = new URL(urlStr);
+    const sslModeParam = parsed.searchParams.get('sslmode');
+    let sslMode = 'disable';
+    if (sslModeParam) {
+        sslMode = sslModeParam;
+    }
+    else if (parsed.hostname.includes('neon.tech') ||
+        parsed.hostname.includes('aws') ||
+        parsed.hostname.includes('supabase')) {
+        sslMode = 'require';
+    }
+    return {
+        type: 'POSTGRES_LOGICAL',
+        host: parsed.hostname,
+        port: parsed.port ? parseInt(parsed.port, 10) : 5432,
+        database: parsed.pathname.replace(/^\//, '') || 'postgres',
+        username: decodeURIComponent(parsed.username || 'postgres'),
+        password: decodeURIComponent(parsed.password || ''),
+        sslMode,
+        version: '17',
+        cpuCount: 1,
+    };
+}
 class DatabasusClient {
     baseUrl;
     email;
@@ -80,6 +105,134 @@ class DatabasusClient {
         this.authToken = response.token;
         return this.authToken;
     }
+    // =========================================================================
+    // CENTRAL DATABASE BACKUP & RESTORE
+    // =========================================================================
+    async ensureCentralDatabaseBackup(options = {}) {
+        const projectName = options.projectName || 'Central Database';
+        const s3Config = options.s3Storage || this.defaultS3Config;
+        if (!s3Config) {
+            throw new Error('S3 storage configuration is required for Central DB backup.');
+        }
+        let dbConfig = options.database;
+        if (!dbConfig && options.connectionString) {
+            dbConfig = parseDatabaseUrl(options.connectionString);
+        }
+        if (!dbConfig) {
+            const globalProcess = typeof globalThis !== 'undefined'
+                ? globalThis.process
+                : undefined;
+            const connStr = globalProcess && globalProcess.env
+                ? globalProcess.env.CENTRAL_DATABASE_URL || globalProcess.env.DATABASE_URL
+                : undefined;
+            if (connStr) {
+                dbConfig = parseDatabaseUrl(connStr);
+            }
+        }
+        if (!dbConfig) {
+            throw new Error('Database configuration is required. Set CENTRAL_DATABASE_URL or provide database options.');
+        }
+        // 1. Find or create central workspace
+        const workspace = await this.findOrCreateWorkspace('central-system', projectName);
+        // 2. Find or create central S3 storage
+        const storage = await this.findOrCreateS3Storage(workspace.id, 'central-db', {
+            ...s3Config,
+            prefix: s3Config.prefix ? `${s3Config.prefix.replace(/\/+$/, '')}/central-db` : 'central-db',
+        });
+        // 3. Find or create central database
+        const database = await this.findOrCreateDatabase(workspace.id, 'central-database', dbConfig);
+        // 4. Save backup schedule (default DAILY at 02:00)
+        const isBackupEnabled = options.isBackupEnabled ?? true;
+        await this.saveBackupConfig({
+            databaseId: database.id,
+            storageId: storage.id,
+            isBackupEnabled,
+            schedule: options.schedule || { type: 'DAILY', timeOfDay: '02:00' },
+        });
+        // 5. Trigger initial backup snapshot by default
+        let initialBackupTriggered = false;
+        const shouldTrigger = options.triggerInitialBackup ?? true;
+        if (shouldTrigger && isBackupEnabled) {
+            try {
+                await this.triggerDatabaseBackup(database.id);
+                initialBackupTriggered = true;
+            }
+            catch (error) {
+                console.warn('Initial backup trigger for Central DB failed:', error);
+            }
+        }
+        return {
+            tenantId: 'central-system',
+            workspaceId: workspace.id,
+            databaseId: database.id,
+            storageId: storage.id,
+            isBackupEnabled,
+            initialBackupTriggered,
+        };
+    }
+    async getCentralBackupStatus() {
+        const workspaceId = await this.resolveWorkspaceId('central-system').catch(() => this.resolveWorkspaceId('Central Database'));
+        const databasesRes = await this.request(`/api/v1/databases?workspace_id=${workspaceId}`);
+        const databases = Array.isArray(databasesRes)
+            ? databasesRes
+            : databasesRes?.databases || [];
+        const database = databases.find((d) => d.name === 'central-database') || databases[0];
+        if (!database) {
+            throw new Error('No central database registered in Databasus.');
+        }
+        const [backupConfig, backupsResponse] = await Promise.all([
+            this.request(`/api/v1/backup-configs/database/${database.id}`).catch(() => ({
+                isBackupsEnabled: false,
+                backupInterval: { type: 'DAILY', timeOfDay: '02:00' },
+            })),
+            this.request(`/api/v1/backups?database_id=${database.id}&limit=10&offset=0`).catch(() => ({
+                backups: [],
+            })),
+        ]);
+        const recentBackups = (backupsResponse.backups || []).map((b) => ({
+            id: b.id,
+            databaseId: database.id,
+            status: b.status,
+            createdAt: b.createdAt,
+            durationMs: b.durationMs,
+            fileSizeBytes: b.fileSizeBytes,
+            errorMessage: b.failMessage,
+        }));
+        const latestBackup = recentBackups[0];
+        return {
+            tenantId: 'central-system',
+            workspaceId,
+            databaseId: database.id,
+            databaseName: database.name,
+            isBackupEnabled: backupConfig.isBackupsEnabled,
+            lastBackupTime: latestBackup?.createdAt,
+            lastBackupStatus: latestBackup?.status,
+            lastBackupErrorMessage: latestBackup?.errorMessage,
+            schedule: backupConfig.backupInterval,
+            recentBackups,
+        };
+    }
+    async triggerCentralBackup() {
+        const status = await this.getCentralBackupStatus();
+        await this.triggerDatabaseBackup(status.databaseId);
+        return status.databaseId;
+    }
+    async toggleCentralBackup(isEnabled) {
+        const status = await this.getCentralBackupStatus();
+        const currentConfig = await this.request(`/api/v1/backup-configs/database/${status.databaseId}`);
+        await this.request('/api/v1/backup-configs/save', {
+            method: 'POST',
+            body: {
+                ...currentConfig,
+                databaseId: status.databaseId,
+                isBackupsEnabled: isEnabled,
+            },
+        });
+        return isEnabled;
+    }
+    // =========================================================================
+    // TENANT PROVISIONING & BACKUP
+    // =========================================================================
     async provisionTenant(options) {
         const s3Config = options.s3Storage || this.defaultS3Config;
         if (!s3Config) {
@@ -199,8 +352,10 @@ class DatabasusClient {
     }
     async restoreWorkspaceAll(workspaceIdOrTenantName) {
         const workspaceId = await this.resolveWorkspaceId(workspaceIdOrTenantName);
-        const databases = await this.request(`/api/v1/databases`);
-        const workspaceDatabases = databases.filter((db) => db.workspaceId === workspaceId);
+        const res = await this.request(`/api/v1/databases?workspace_id=${workspaceId}`);
+        const workspaceDatabases = Array.isArray(res)
+            ? res
+            : res?.databases || [];
         const results = [];
         let restoredCount = 0;
         let failedCount = 0;
@@ -257,35 +412,46 @@ class DatabasusClient {
             method: 'DELETE',
         });
     }
-    async findOrCreateWorkspace(tenantId, tenantName) {
-        const workspaces = await this.request('/api/v1/workspaces');
-        const existing = workspaces.find((w) => w.name === tenantName || w.name === tenantId || w.id === tenantId);
+    // =========================================================================
+    // INTERNAL HELPERS
+    // =========================================================================
+    async findOrCreateWorkspace(identifier, name) {
+        const res = await this.request('/api/v1/workspaces').catch(() => ({ workspaces: [] }));
+        const workspaces = res?.workspaces || [];
+        const existing = workspaces.find((w) => w.name.toLowerCase() === name.toLowerCase() ||
+            w.name.toLowerCase() === identifier.toLowerCase() ||
+            w.id === identifier);
         if (existing) {
             return existing;
         }
-        const created = await this.request('/api/v1/workspaces/create', {
+        const created = await this.request('/api/v1/workspaces', {
             method: 'POST',
             body: {
-                name: tenantName || `tenant-${tenantId}`,
+                name: name || `workspace-${identifier}`,
             },
         });
         return created;
     }
-    async findOrCreateS3Storage(workspaceId, tenantId, s3Config) {
-        const storages = await this.request('/api/v1/storages');
-        const existing = storages.find((s) => s.workspaceId === workspaceId && s.name === `S3-${tenantId}`);
+    async findOrCreateS3Storage(workspaceId, storageIdentifier, s3Config) {
+        const storagesRes = await this.request(`/api/v1/storages?workspace_id=${workspaceId}`).catch(() => ({ storages: [] }));
+        const storageList = Array.isArray(storagesRes)
+            ? storagesRes
+            : storagesRes?.storages || [];
+        const existing = storageList.find((s) => s.name === `S3-${storageIdentifier}` ||
+            s.name === storageIdentifier ||
+            s.id === storageIdentifier);
         if (existing) {
             return existing;
         }
         const prefix = s3Config.prefix
-            ? `${s3Config.prefix.replace(/\/+$/, '')}/tenants/${tenantId}`
-            : `tenants/${tenantId}`;
+            ? `${s3Config.prefix.replace(/\/+$/, '')}/${storageIdentifier}`
+            : `tenants/${storageIdentifier}`;
         const created = await this.request('/api/v1/storages', {
             method: 'POST',
             body: {
                 workspaceId,
                 type: 'S3',
-                name: `S3-${tenantId}`,
+                name: `S3-${storageIdentifier}`,
                 s3Storage: {
                     s3Bucket: s3Config.bucket,
                     s3Region: s3Config.region,
@@ -302,15 +468,25 @@ class DatabasusClient {
         return created;
     }
     async createTenantDatabase(workspaceId, options) {
-        const dbConfig = options.database;
-        const dbType = dbConfig.type || 'POSTGRESQL_LOGICAL';
+        return this.findOrCreateDatabase(workspaceId, `${options.tenantName || options.tenantId}-db`, options.database);
+    }
+    async findOrCreateDatabase(workspaceId, databaseName, dbConfig) {
+        const databasesRes = await this.request(`/api/v1/databases?workspace_id=${workspaceId}`).catch(() => ({ databases: [] }));
+        const databaseList = Array.isArray(databasesRes)
+            ? databasesRes
+            : databasesRes?.databases || [];
+        const existing = databaseList.find((d) => d.name === databaseName);
+        if (existing) {
+            return existing;
+        }
+        const dbType = dbConfig.type === 'POSTGRESQL_LOGICAL' ? 'POSTGRES_LOGICAL' : dbConfig.type || 'POSTGRES_LOGICAL';
         const payload = {
             workspaceId,
-            name: `${options.tenantName || options.tenantId}-db`,
+            name: databaseName,
             type: dbType,
-            healthStatus: 'HEALTHY',
+            healthStatus: 'AVAILABLE',
         };
-        if (dbType === 'POSTGRESQL_LOGICAL') {
+        if (dbType === 'POSTGRES_LOGICAL' || dbType === 'POSTGRESQL_LOGICAL') {
             payload['postgresqlLogical'] = {
                 version: dbConfig.version || '17',
                 host: dbConfig.host,
@@ -319,6 +495,7 @@ class DatabasusClient {
                 username: dbConfig.username,
                 password: dbConfig.password,
                 sslMode: dbConfig.sslMode || 'disable',
+                cpuCount: dbConfig.cpuCount || 1,
             };
         }
         const database = await this.request('/api/v1/databases/create', {
@@ -353,26 +530,30 @@ class DatabasusClient {
         await this.request('/api/v1/backups', {
             method: 'POST',
             body: {
-                databaseId,
+                database_id: databaseId,
+                databaseId: databaseId,
             },
         });
     }
     async resolveTenantDatabase(tenantIdentifier) {
-        const databases = await this.request('/api/v1/databases');
-        const directMatch = databases.find((d) => d.id === tenantIdentifier);
-        if (directMatch) {
-            return directMatch;
-        }
         const workspaceId = await this.resolveWorkspaceId(tenantIdentifier);
-        const workspaceDb = databases.find((d) => d.workspaceId === workspaceId);
-        if (workspaceDb) {
-            return workspaceDb;
+        const res = await this.request(`/api/v1/databases?workspace_id=${workspaceId}`);
+        const databases = Array.isArray(res)
+            ? res
+            : res?.databases || [];
+        const match = databases.find((d) => d.id === tenantIdentifier ||
+            d.name.toLowerCase().includes(tenantIdentifier.toLowerCase())) || databases[0];
+        if (match) {
+            return { ...match, workspaceId };
         }
         throw new Error(`No database found in Databasus matching tenant identifier '${tenantIdentifier}'.`);
     }
     async resolveWorkspaceId(identifier) {
-        const workspaces = await this.request('/api/v1/workspaces');
-        const found = workspaces.find((w) => w.id === identifier || w.name === identifier);
+        const res = await this.request('/api/v1/workspaces');
+        const workspaces = res?.workspaces || [];
+        const found = workspaces.find((w) => w.id === identifier ||
+            w.name.toLowerCase() === identifier.toLowerCase() ||
+            w.name.toLowerCase().includes(identifier.toLowerCase()));
         if (found) {
             return found.id;
         }

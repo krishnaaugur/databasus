@@ -1,4 +1,5 @@
-import { DatabasusClientOptions, TenantBackupStatus, TenantProvisionOptions, TenantProvisionResult, TenantRestoreOptions, WorkspaceBulkRestoreResult } from './types';
+import { CentralDbProvisionOptions, DatabaseConnectionConfig, DatabasusClientOptions, TenantBackupStatus, TenantProvisionOptions, TenantProvisionResult, TenantRestoreOptions, WorkspaceBulkRestoreResult } from './types';
+export declare function parseDatabaseUrl(urlStr: string): DatabaseConnectionConfig;
 export declare class DatabasusClient {
     private readonly baseUrl;
     private readonly email?;
@@ -8,6 +9,10 @@ export declare class DatabasusClient {
     constructor(options: DatabasusClientOptions);
     private request;
     ensureAuthenticated(): Promise<string>;
+    ensureCentralDatabaseBackup(options?: CentralDbProvisionOptions): Promise<TenantProvisionResult>;
+    getCentralBackupStatus(): Promise<TenantBackupStatus>;
+    triggerCentralBackup(): Promise<string>;
+    toggleCentralBackup(isEnabled: boolean): Promise<boolean>;
     provisionTenant(options: TenantProvisionOptions): Promise<TenantProvisionResult>;
     toggleTenantBackup(tenantIdentifier: string, isEnabled: boolean): Promise<boolean>;
     triggerTenantBackup(tenantIdentifier: string): Promise<string>;
@@ -21,6 +26,7 @@ export declare class DatabasusClient {
     private findOrCreateWorkspace;
     private findOrCreateS3Storage;
     private createTenantDatabase;
+    private findOrCreateDatabase;
     private saveBackupConfig;
     private triggerDatabaseBackup;
     private resolveTenantDatabase;

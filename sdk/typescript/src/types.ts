@@ -1,5 +1,7 @@
 export type DatabaseType =
+  | 'POSTGRES_LOGICAL'
   | 'POSTGRESQL_LOGICAL'
+  | 'POSTGRES_PHYSICAL'
   | 'POSTGRESQL_PHYSICAL'
   | 'MYSQL'
   | 'MARIADB'
@@ -38,6 +40,7 @@ export interface DatabaseConnectionConfig {
   password: string;
   sslMode?: 'disable' | 'allow' | 'prefer' | 'require' | 'verify-ca' | 'verify-full';
   version?: string;
+  cpuCount?: number;
 }
 
 export interface BackupScheduleConfig {
@@ -46,6 +49,16 @@ export interface BackupScheduleConfig {
   weekday?: number; // 0-6 (Sunday=0) for WEEKLY
   dayOfMonth?: number; // 1-31 for MONTHLY
   cronExpression?: string; // Standard 5-part cron expression for CRON
+}
+
+export interface CentralDbProvisionOptions {
+  projectName?: string;
+  connectionString?: string;
+  database?: DatabaseConnectionConfig;
+  s3Storage?: S3StorageConfig;
+  schedule?: BackupScheduleConfig;
+  isBackupEnabled?: boolean;
+  triggerInitialBackup?: boolean;
 }
 
 export interface TenantProvisionOptions {
@@ -120,7 +133,6 @@ export interface WorkspaceBulkRestoreResult {
   results: SingleDatabaseRestoreResult[];
 }
 
-
 export interface DatabasusMountOptions {
   tenantId: string;
   apiUrl?: string;
@@ -144,3 +156,4 @@ export interface DatabasusWidgetInstance {
   refresh(): Promise<void>;
   destroy(): void;
 }
+

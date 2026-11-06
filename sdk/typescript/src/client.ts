@@ -1,6 +1,8 @@
 import {
   BackupRecord,
   BackupScheduleConfig,
+  CentralDbProvisionOptions,
+  DatabaseConnectionConfig,
   DatabasusClientOptions,
   S3StorageConfig,
   SingleDatabaseRestoreResult,
@@ -10,6 +12,33 @@ import {
   TenantRestoreOptions,
   WorkspaceBulkRestoreResult,
 } from './types';
+
+export function parseDatabaseUrl(urlStr: string): DatabaseConnectionConfig {
+  const parsed = new URL(urlStr);
+  const sslModeParam = parsed.searchParams.get('sslmode');
+  let sslMode: DatabaseConnectionConfig['sslMode'] = 'disable';
+  if (sslModeParam) {
+    sslMode = sslModeParam as DatabaseConnectionConfig['sslMode'];
+  } else if (
+    parsed.hostname.includes('neon.tech') ||
+    parsed.hostname.includes('aws') ||
+    parsed.hostname.includes('supabase')
+  ) {
+    sslMode = 'require';
+  }
+
+  return {
+    type: 'POSTGRES_LOGICAL',
+    host: parsed.hostname,
+    port: parsed.port ? parseInt(parsed.port, 10) : 5432,
+    database: parsed.pathname.replace(/^\//, '') || 'postgres',
+    username: decodeURIComponent(parsed.username || 'postgres'),
+    password: decodeURIComponent(parsed.password || ''),
+    sslMode,
+    version: '17',
+    cpuCount: 1,
+  };
+}
 
 export class DatabasusClient {
   private readonly baseUrl: string;
@@ -126,6 +155,181 @@ export class DatabasusClient {
     this.authToken = response.token;
     return this.authToken;
   }
+
+  // =========================================================================
+  // CENTRAL DATABASE BACKUP & RESTORE
+  // =========================================================================
+
+  public async ensureCentralDatabaseBackup(
+    options: CentralDbProvisionOptions = {}
+  ): Promise<TenantProvisionResult> {
+    const projectName = options.projectName || 'Central Database';
+    const s3Config = options.s3Storage || this.defaultS3Config;
+    if (!s3Config) {
+      throw new Error('S3 storage configuration is required for Central DB backup.');
+    }
+
+    let dbConfig = options.database;
+    if (!dbConfig && options.connectionString) {
+      dbConfig = parseDatabaseUrl(options.connectionString);
+    }
+    if (!dbConfig) {
+      const globalProcess =
+        typeof globalThis !== 'undefined'
+          ? ((globalThis as Record<string, unknown>).process as
+              | { env?: Record<string, string | undefined> }
+              | undefined)
+          : undefined;
+      const connStr =
+        globalProcess && globalProcess.env
+          ? globalProcess.env.CENTRAL_DATABASE_URL || globalProcess.env.DATABASE_URL
+          : undefined;
+      if (connStr) {
+        dbConfig = parseDatabaseUrl(connStr);
+      }
+    }
+
+    if (!dbConfig) {
+      throw new Error(
+        'Database configuration is required. Set CENTRAL_DATABASE_URL or provide database options.'
+      );
+    }
+
+    // 1. Find or create central workspace
+    const workspace = await this.findOrCreateWorkspace('central-system', projectName);
+
+    // 2. Find or create central S3 storage
+    const storage = await this.findOrCreateS3Storage(workspace.id, 'central-db', {
+      ...s3Config,
+      prefix: s3Config.prefix ? `${s3Config.prefix.replace(/\/+$/, '')}/central-db` : 'central-db',
+    });
+
+    // 3. Find or create central database
+    const database = await this.findOrCreateDatabase(workspace.id, 'central-database', dbConfig);
+
+    // 4. Save backup schedule (default DAILY at 02:00)
+    const isBackupEnabled = options.isBackupEnabled ?? true;
+    await this.saveBackupConfig({
+      databaseId: database.id,
+      storageId: storage.id,
+      isBackupEnabled,
+      schedule: options.schedule || { type: 'DAILY', timeOfDay: '02:00' },
+    });
+
+    // 5. Trigger initial backup snapshot by default
+    let initialBackupTriggered = false;
+    const shouldTrigger = options.triggerInitialBackup ?? true;
+    if (shouldTrigger && isBackupEnabled) {
+      try {
+        await this.triggerDatabaseBackup(database.id);
+        initialBackupTriggered = true;
+      } catch (error) {
+        console.warn('Initial backup trigger for Central DB failed:', error);
+      }
+    }
+
+    return {
+      tenantId: 'central-system',
+      workspaceId: workspace.id,
+      databaseId: database.id,
+      storageId: storage.id,
+      isBackupEnabled,
+      initialBackupTriggered,
+    };
+  }
+
+  public async getCentralBackupStatus(): Promise<TenantBackupStatus> {
+    const workspaceId = await this.resolveWorkspaceId('central-system').catch(() =>
+      this.resolveWorkspaceId('Central Database')
+    );
+
+    const databasesRes = await this.request<{
+      databases?: Array<{ id: string; name: string }>;
+    }>(`/api/v1/databases?workspace_id=${workspaceId}`);
+    const databases: Array<{ id: string; name: string }> = Array.isArray(databasesRes)
+      ? (databasesRes as Array<{ id: string; name: string }>)
+      : databasesRes?.databases || [];
+
+    const database = databases.find((d) => d.name === 'central-database') || databases[0];
+    if (!database) {
+      throw new Error('No central database registered in Databasus.');
+    }
+
+    const [backupConfig, backupsResponse] = await Promise.all([
+      this.request<{
+        isBackupsEnabled: boolean;
+        backupInterval: BackupScheduleConfig;
+      }>(`/api/v1/backup-configs/database/${database.id}`).catch(() => ({
+        isBackupsEnabled: false,
+        backupInterval: { type: 'DAILY' as const, timeOfDay: '02:00' },
+      })),
+      this.request<{
+        backups: Array<{
+          id: string;
+          status: string;
+          createdAt: string;
+          durationMs: number;
+          fileSizeBytes: number;
+          failMessage?: string;
+        }>;
+      }>(`/api/v1/backups?database_id=${database.id}&limit=10&offset=0`).catch(() => ({
+        backups: [],
+      })),
+    ]);
+
+    const recentBackups: BackupRecord[] = (backupsResponse.backups || []).map((b) => ({
+      id: b.id,
+      databaseId: database.id,
+      status: b.status as BackupRecord['status'],
+      createdAt: b.createdAt,
+      durationMs: b.durationMs,
+      fileSizeBytes: b.fileSizeBytes,
+      errorMessage: b.failMessage,
+    }));
+
+    const latestBackup = recentBackups[0];
+
+    return {
+      tenantId: 'central-system',
+      workspaceId,
+      databaseId: database.id,
+      databaseName: database.name,
+      isBackupEnabled: backupConfig.isBackupsEnabled,
+      lastBackupTime: latestBackup?.createdAt,
+      lastBackupStatus: latestBackup?.status,
+      lastBackupErrorMessage: latestBackup?.errorMessage,
+      schedule: backupConfig.backupInterval,
+      recentBackups,
+    };
+  }
+
+  public async triggerCentralBackup(): Promise<string> {
+    const status = await this.getCentralBackupStatus();
+    await this.triggerDatabaseBackup(status.databaseId);
+    return status.databaseId;
+  }
+
+  public async toggleCentralBackup(isEnabled: boolean): Promise<boolean> {
+    const status = await this.getCentralBackupStatus();
+    const currentConfig = await this.request<Record<string, unknown>>(
+      `/api/v1/backup-configs/database/${status.databaseId}`
+    );
+
+    await this.request('/api/v1/backup-configs/save', {
+      method: 'POST',
+      body: {
+        ...currentConfig,
+        databaseId: status.databaseId,
+        isBackupsEnabled: isEnabled,
+      },
+    });
+
+    return isEnabled;
+  }
+
+  // =========================================================================
+  // TENANT PROVISIONING & BACKUP
+  // =========================================================================
 
   public async provisionTenant(
     options: TenantProvisionOptions
@@ -300,15 +504,12 @@ export class DatabasusClient {
   ): Promise<WorkspaceBulkRestoreResult> {
     const workspaceId = await this.resolveWorkspaceId(workspaceIdOrTenantName);
 
-    const databases = await this.request<
-      Array<{
-        id: string;
-        name: string;
-        workspaceId: string;
-      }>
-    >(`/api/v1/databases`);
-
-    const workspaceDatabases = databases.filter((db) => db.workspaceId === workspaceId);
+    const res = await this.request<{
+      databases?: Array<{ id: string; name: string; workspaceId: string }>;
+    }>(`/api/v1/databases?workspace_id=${workspaceId}`);
+    const workspaceDatabases: Array<{ id: string; name: string; workspaceId: string }> = Array.isArray(res)
+      ? (res as Array<{ id: string; name: string; workspaceId: string }>)
+      : res?.databases || [];
 
     const results: SingleDatabaseRestoreResult[] = [];
     let restoredCount = 0;
@@ -374,46 +575,59 @@ export class DatabasusClient {
     });
   }
 
+  // =========================================================================
+  // INTERNAL HELPERS
+  // =========================================================================
+
   private async findOrCreateWorkspace(
-    tenantId: string,
-    tenantName: string
+    identifier: string,
+    name: string
   ): Promise<{ id: string; name: string }> {
-    const workspaces = await this.request<Array<{ id: string; name: string }>>(
+    const res = await this.request<{ workspaces: Array<{ id: string; name: string }> }>(
       '/api/v1/workspaces'
-    );
+    ).catch(() => ({ workspaces: [] }));
+
+    const workspaces = res?.workspaces || [];
 
     const existing = workspaces.find(
-      (w) => w.name === tenantName || w.name === tenantId || w.id === tenantId
+      (w) =>
+        w.name.toLowerCase() === name.toLowerCase() ||
+        w.name.toLowerCase() === identifier.toLowerCase() ||
+        w.id === identifier
     );
 
     if (existing) {
       return existing;
     }
 
-    const created = await this.request<{ id: string; name: string }>(
-      '/api/v1/workspaces/create',
-      {
-        method: 'POST',
-        body: {
-          name: tenantName || `tenant-${tenantId}`,
-        },
-      }
-    );
+    const created = await this.request<{ id: string; name: string }>('/api/v1/workspaces', {
+      method: 'POST',
+      body: {
+        name: name || `workspace-${identifier}`,
+      },
+    });
 
     return created;
   }
 
   private async findOrCreateS3Storage(
     workspaceId: string,
-    tenantId: string,
+    storageIdentifier: string,
     s3Config: S3StorageConfig
   ): Promise<{ id: string }> {
-    const storages = await this.request<Array<{ id: string; name: string; workspaceId: string }>>(
-      '/api/v1/storages'
-    );
+    const storagesRes = await this.request<{
+      storages?: Array<{ id: string; name: string }>;
+    }>(`/api/v1/storages?workspace_id=${workspaceId}`).catch(() => ({ storages: [] }));
 
-    const existing = storages.find(
-      (s) => s.workspaceId === workspaceId && s.name === `S3-${tenantId}`
+    const storageList: Array<{ id: string; name: string }> = Array.isArray(storagesRes)
+      ? (storagesRes as Array<{ id: string; name: string }>)
+      : storagesRes?.storages || [];
+
+    const existing = storageList.find(
+      (s) =>
+        s.name === `S3-${storageIdentifier}` ||
+        s.name === storageIdentifier ||
+        s.id === storageIdentifier
     );
 
     if (existing) {
@@ -421,15 +635,15 @@ export class DatabasusClient {
     }
 
     const prefix = s3Config.prefix
-      ? `${s3Config.prefix.replace(/\/+$/, '')}/tenants/${tenantId}`
-      : `tenants/${tenantId}`;
+      ? `${s3Config.prefix.replace(/\/+$/, '')}/${storageIdentifier}`
+      : `tenants/${storageIdentifier}`;
 
     const created = await this.request<{ id: string }>('/api/v1/storages', {
       method: 'POST',
       body: {
         workspaceId,
         type: 'S3',
-        name: `S3-${tenantId}`,
+        name: `S3-${storageIdentifier}`,
         s3Storage: {
           s3Bucket: s3Config.bucket,
           s3Region: s3Config.region,
@@ -451,17 +665,42 @@ export class DatabasusClient {
     workspaceId: string,
     options: TenantProvisionOptions
   ): Promise<{ id: string }> {
-    const dbConfig = options.database;
-    const dbType = dbConfig.type || 'POSTGRESQL_LOGICAL';
+    return this.findOrCreateDatabase(
+      workspaceId,
+      `${options.tenantName || options.tenantId}-db`,
+      options.database
+    );
+  }
+
+  private async findOrCreateDatabase(
+    workspaceId: string,
+    databaseName: string,
+    dbConfig: DatabaseConnectionConfig
+  ): Promise<{ id: string; name: string }> {
+    const databasesRes = await this.request<{
+      databases?: Array<{ id: string; name: string }>;
+    }>(`/api/v1/databases?workspace_id=${workspaceId}`).catch(() => ({ databases: [] }));
+
+    const databaseList: Array<{ id: string; name: string }> = Array.isArray(databasesRes)
+      ? (databasesRes as Array<{ id: string; name: string }>)
+      : databasesRes?.databases || [];
+
+    const existing = databaseList.find((d) => d.name === databaseName);
+    if (existing) {
+      return existing;
+    }
+
+    const dbType =
+      dbConfig.type === 'POSTGRESQL_LOGICAL' ? 'POSTGRES_LOGICAL' : dbConfig.type || 'POSTGRES_LOGICAL';
 
     const payload: Record<string, unknown> = {
       workspaceId,
-      name: `${options.tenantName || options.tenantId}-db`,
+      name: databaseName,
       type: dbType,
-      healthStatus: 'HEALTHY',
+      healthStatus: 'AVAILABLE',
     };
 
-    if (dbType === 'POSTGRESQL_LOGICAL') {
+    if (dbType === 'POSTGRES_LOGICAL' || (dbType as string) === 'POSTGRESQL_LOGICAL') {
       payload['postgresqlLogical'] = {
         version: dbConfig.version || '17',
         host: dbConfig.host,
@@ -470,10 +709,11 @@ export class DatabasusClient {
         username: dbConfig.username,
         password: dbConfig.password,
         sslMode: dbConfig.sslMode || 'disable',
+        cpuCount: dbConfig.cpuCount || 1,
       };
     }
 
-    const database = await this.request<{ id: string }>('/api/v1/databases/create', {
+    const database = await this.request<{ id: string; name: string }>('/api/v1/databases/create', {
       method: 'POST',
       body: payload,
     });
@@ -513,7 +753,8 @@ export class DatabasusClient {
     await this.request('/api/v1/backups', {
       method: 'POST',
       body: {
-        databaseId,
+        database_id: databaseId,
+        databaseId: databaseId,
       },
     });
   }
@@ -523,23 +764,24 @@ export class DatabasusClient {
     name: string;
     workspaceId: string;
   }> {
-    const databases = await this.request<
-      Array<{
-        id: string;
-        name: string;
-        workspaceId: string;
-      }>
-    >('/api/v1/databases');
-
-    const directMatch = databases.find((d) => d.id === tenantIdentifier);
-    if (directMatch) {
-      return directMatch;
-    }
-
     const workspaceId = await this.resolveWorkspaceId(tenantIdentifier);
-    const workspaceDb = databases.find((d) => d.workspaceId === workspaceId);
-    if (workspaceDb) {
-      return workspaceDb;
+
+    const res = await this.request<{
+      databases?: Array<{ id: string; name: string; workspaceId: string }>;
+    }>(`/api/v1/databases?workspace_id=${workspaceId}`);
+    const databases: Array<{ id: string; name: string; workspaceId: string }> = Array.isArray(res)
+      ? (res as Array<{ id: string; name: string; workspaceId: string }>)
+      : res?.databases || [];
+
+    const match =
+      databases.find(
+        (d) =>
+          d.id === tenantIdentifier ||
+          d.name.toLowerCase().includes(tenantIdentifier.toLowerCase())
+      ) || databases[0];
+
+    if (match) {
+      return { ...match, workspaceId };
     }
 
     throw new Error(
@@ -548,11 +790,17 @@ export class DatabasusClient {
   }
 
   private async resolveWorkspaceId(identifier: string): Promise<string> {
-    const workspaces = await this.request<Array<{ id: string; name: string }>>(
+    const res = await this.request<{ workspaces: Array<{ id: string; name: string }> }>(
       '/api/v1/workspaces'
     );
+    const workspaces = res?.workspaces || [];
 
-    const found = workspaces.find((w) => w.id === identifier || w.name === identifier);
+    const found = workspaces.find(
+      (w) =>
+        w.id === identifier ||
+        w.name.toLowerCase() === identifier.toLowerCase() ||
+        w.name.toLowerCase().includes(identifier.toLowerCase())
+    );
     if (found) {
       return found.id;
     }
@@ -560,4 +808,3 @@ export class DatabasusClient {
     throw new Error(`Workspace not found for identifier '${identifier}'.`);
   }
 }
-

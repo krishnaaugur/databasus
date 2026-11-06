@@ -1,4 +1,4 @@
-export type DatabaseType = 'POSTGRESQL_LOGICAL' | 'POSTGRESQL_PHYSICAL' | 'MYSQL' | 'MARIADB' | 'MONGODB';
+export type DatabaseType = 'POSTGRES_LOGICAL' | 'POSTGRESQL_LOGICAL' | 'POSTGRES_PHYSICAL' | 'POSTGRESQL_PHYSICAL' | 'MYSQL' | 'MARIADB' | 'MONGODB';
 export type IntervalType = 'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'CRON';
 export type BackupStatus = 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CANCELED';
 export interface DatabasusClientOptions {
@@ -28,6 +28,7 @@ export interface DatabaseConnectionConfig {
     password: string;
     sslMode?: 'disable' | 'allow' | 'prefer' | 'require' | 'verify-ca' | 'verify-full';
     version?: string;
+    cpuCount?: number;
 }
 export interface BackupScheduleConfig {
     type: IntervalType;
@@ -35,6 +36,15 @@ export interface BackupScheduleConfig {
     weekday?: number;
     dayOfMonth?: number;
     cronExpression?: string;
+}
+export interface CentralDbProvisionOptions {
+    projectName?: string;
+    connectionString?: string;
+    database?: DatabaseConnectionConfig;
+    s3Storage?: S3StorageConfig;
+    schedule?: BackupScheduleConfig;
+    isBackupEnabled?: boolean;
+    triggerInitialBackup?: boolean;
 }
 export interface TenantProvisionOptions {
     tenantId: string;
