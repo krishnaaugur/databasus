@@ -110,6 +110,7 @@ export interface RestoreTargetConfig {
   username: string;
   password: string;
   sslMode?: 'disable' | 'allow' | 'prefer' | 'require' | 'verify-ca' | 'verify-full';
+  version?: string;
 }
 
 export interface TenantRestoreOptions {

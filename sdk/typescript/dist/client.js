@@ -334,13 +334,13 @@ class DatabasusClient {
         const restorePayload = {};
         if (options.targetDatabase) {
             restorePayload['postgresqlDatabase'] = {
-                version: '17',
+                version: options.targetDatabase.version || '18',
                 host: options.targetDatabase.host,
                 port: options.targetDatabase.port || 5432,
                 database: options.targetDatabase.database,
                 username: options.targetDatabase.username,
                 password: options.targetDatabase.password,
-                sslMode: options.targetDatabase.sslMode || 'disable',
+                sslMode: options.targetDatabase.sslMode || 'require',
             };
         }
         const response = await this.request(`/api/v1/restores/${backupIdToRestore}/restore`, {
