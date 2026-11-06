@@ -27,9 +27,12 @@ export function parseDatabaseUrl(urlStr: string): DatabaseConnectionConfig {
     sslMode = 'require';
   }
 
+  // For Neon, strip -pooler suffix so Databasus connects directly for backups
+  const host = parsed.hostname.replace('-pooler', '');
+
   return {
     type: 'POSTGRES_LOGICAL',
-    host: parsed.hostname,
+    host,
     port: parsed.port ? parseInt(parsed.port, 10) : 5432,
     database: parsed.pathname.replace(/^\//, '') || 'postgres',
     username: decodeURIComponent(parsed.username || 'postgres'),
