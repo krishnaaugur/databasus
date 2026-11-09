@@ -70,6 +70,9 @@ type EnvVariables struct {
 	SecretKeyPath         string
 	TelemetryInstancePath string
 
+	SecretKey         string `env:"SECRET_KEY"`
+	DatabasusSecretKey string `env:"DATABASUS_SECRET_KEY"`
+
 	IsDisableAnonymousTelemetry bool `env:"IS_DISABLE_ANONYMOUS_TELEMETRY"`
 
 	// TestLogicalPostgres16Port is the shared always-on logical-Postgres fixture used by

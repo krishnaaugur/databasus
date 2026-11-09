@@ -54,6 +54,27 @@ func (s *SecretKeyService) GetSecretKey() (string, error) {
 		return *s.cachedKey, nil
 	}
 
+	// 1. Check if configured via environment variables (DATABASUS_SECRET_KEY or SECRET_KEY)
+	// This ensures keys persist across ephemeral container restarts (e.g. on Render)
+	if envKey := os.Getenv("DATABASUS_SECRET_KEY"); envKey != "" {
+		s.cachedKey = &envKey
+		return envKey, nil
+	}
+	if envKey := os.Getenv("SECRET_KEY"); envKey != "" {
+		s.cachedKey = &envKey
+		return envKey, nil
+	}
+	if env := config.GetEnv(); env != nil {
+		if env.DatabasusSecretKey != "" {
+			s.cachedKey = &env.DatabasusSecretKey
+			return env.DatabasusSecretKey, nil
+		}
+		if env.SecretKey != "" {
+			s.cachedKey = &env.SecretKey
+			return env.SecretKey, nil
+		}
+	}
+
 	secretKeyPath := config.GetEnv().SecretKeyPath
 	data, err := os.ReadFile(secretKeyPath)
 	if err != nil {
