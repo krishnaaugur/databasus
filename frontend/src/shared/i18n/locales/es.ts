@@ -715,6 +715,13 @@ export const es: typeof en = {
     },
     targetDatabase: {
       select: 'Elegir la base de datos de destino',
+      restoreToOriginal: 'Restaurar en la base de datos original (Sobrescribir)',
+      restoreToOriginalWarningTitle: '¿Sobrescribir los datos de la base de datos actual?',
+      restoreToOriginalWarningBody:
+        'Esto se conectará directamente a <bold>{{name}}</bold> usando sus credenciales guardadas y sobrescribirá todos los datos actuales con esta copia de seguridad.',
+      restoreToOriginalWarningHint:
+        'Se perderán los cambios realizados después de esta copia. No se requieren credenciales manuales.',
+      restoreToOriginalConfirmButton: 'Sí, sobrescribir y restaurar',
       description:
         'Introduzca los datos de la base de datos en la que se restaurará la copia de seguridad. <underline>La base de datos vacía debe crearse antes de la restauración</underline>. Durante la restauración se borrarán todos sus datos actuales',
       notInUseHint:

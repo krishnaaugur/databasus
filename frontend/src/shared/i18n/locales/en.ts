@@ -695,6 +695,13 @@ export const en = {
     },
     targetDatabase: {
       select: 'Select database to restore to',
+      restoreToOriginal: 'Restore to Original Database (Overwrite)',
+      restoreToOriginalWarningTitle: 'Overwrite existing database data?',
+      restoreToOriginalWarningBody:
+        'This will directly connect to <bold>{{name}}</bold> using its saved credentials and overwrite all existing data with this backup.',
+      restoreToOriginalWarningHint:
+        'Any changes made since this backup was taken will be replaced. No manual credentials required.',
+      restoreToOriginalConfirmButton: 'Yes, Overwrite & Restore',
       description:
         'Enter info of the database we will restore backup to. <underline>The empty database for restore should be created before the restore</underline>. During the restore, all the current data will be cleared',
       notInUseHint:

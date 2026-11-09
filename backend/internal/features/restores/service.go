@@ -134,6 +134,77 @@ func (s *RestoreService) RestoreBackupWithAuth(
 		return err
 	}
 
+	// When restoring in-place to the original database (or when no target database credentials are provided):
+	isRestoreToOriginal := requestDTO.RestoreToOriginalDatabase ||
+		(requestDTO.PostgresqlLogicalDatabase == nil &&
+			requestDTO.MysqlDatabase == nil &&
+			requestDTO.MariadbDatabase == nil &&
+			requestDTO.MongodbDatabase == nil)
+
+	if isRestoreToOriginal {
+		switch database.Type {
+		case databases.DatabaseTypePostgresLogical:
+			if database.PostgresqlLogical != nil {
+				pg := *database.PostgresqlLogical
+				if requestDTO.PostgresqlLogicalDatabase != nil {
+					pg.IsExcludeExtensions = requestDTO.PostgresqlLogicalDatabase.IsExcludeExtensions
+					if requestDTO.PostgresqlLogicalDatabase.CpuCount > 0 {
+						pg.CpuCount = requestDTO.PostgresqlLogicalDatabase.CpuCount
+					}
+				}
+				requestDTO.PostgresqlLogicalDatabase = &pg
+			}
+		case databases.DatabaseTypeMysql:
+			if database.Mysql != nil {
+				my := *database.Mysql
+				requestDTO.MysqlDatabase = &my
+			}
+		case databases.DatabaseTypeMariadb:
+			if database.Mariadb != nil {
+				maria := *database.Mariadb
+				requestDTO.MariadbDatabase = &maria
+			}
+		case databases.DatabaseTypeMongodb:
+			if database.Mongodb != nil {
+				mongo := *database.Mongodb
+				requestDTO.MongodbDatabase = &mongo
+			}
+		}
+	} else {
+		// If user selected the original database in the form but omitted the password,
+		// reuse the stored encrypted password from the database configuration.
+		switch database.Type {
+		case databases.DatabaseTypePostgresLogical:
+			if requestDTO.PostgresqlLogicalDatabase != nil &&
+				requestDTO.PostgresqlLogicalDatabase.Password == "" &&
+				database.PostgresqlLogical != nil &&
+				requestDTO.PostgresqlLogicalDatabase.Host == database.PostgresqlLogical.Host {
+				requestDTO.PostgresqlLogicalDatabase.Password = database.PostgresqlLogical.Password
+			}
+		case databases.DatabaseTypeMysql:
+			if requestDTO.MysqlDatabase != nil &&
+				requestDTO.MysqlDatabase.Password == "" &&
+				database.Mysql != nil &&
+				requestDTO.MysqlDatabase.Host == database.Mysql.Host {
+				requestDTO.MysqlDatabase.Password = database.Mysql.Password
+			}
+		case databases.DatabaseTypeMariadb:
+			if requestDTO.MariadbDatabase != nil &&
+				requestDTO.MariadbDatabase.Password == "" &&
+				database.Mariadb != nil &&
+				requestDTO.MariadbDatabase.Host == database.Mariadb.Host {
+				requestDTO.MariadbDatabase.Password = database.Mariadb.Password
+			}
+		case databases.DatabaseTypeMongodb:
+			if requestDTO.MongodbDatabase != nil &&
+				requestDTO.MongodbDatabase.Password == "" &&
+				database.Mongodb != nil &&
+				requestDTO.MongodbDatabase.Host == database.Mongodb.Host {
+				requestDTO.MongodbDatabase.Password = database.Mongodb.Password
+			}
+		}
+	}
+
 	if err := s.populateRestoreTargetVersionThroughTunnel(ctx, backupDatabase, requestDTO); err != nil {
 		return err
 	}

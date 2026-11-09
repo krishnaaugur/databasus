@@ -8,6 +8,7 @@ import (
 )
 
 type RestoreBackupRequest struct {
+	RestoreToOriginalDatabase bool                                  `json:"restoreToOriginalDatabase"`
 	PostgresqlLogicalDatabase *postgresql_logical.PostgresqlLogicalDatabase `json:"postgresqlDatabase"`
 	MysqlDatabase             *mysql.MysqlDatabase                          `json:"mysqlDatabase"`
 	MariadbDatabase           *mariadb.MariadbDatabase                      `json:"mariadbDatabase"`

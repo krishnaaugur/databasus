@@ -719,6 +719,13 @@ export const fr: typeof en = {
     },
     targetDatabase: {
       select: 'Choisir la base de données de destination',
+      restoreToOriginal: "Restaurer sur la base de données d'origine (Écraser)",
+      restoreToOriginalWarningTitle: 'Écraser les données de la base de données existante ?',
+      restoreToOriginalWarningBody:
+        'Cela se connectera directement à <bold>{{name}}</bold> avec ses identifiants enregistrés et écrasera toutes les données existantes avec cette sauvegarde.',
+      restoreToOriginalWarningHint:
+        'Toutes les modifications apportées depuis cette sauvegarde seront écrasées. Aucun identifiant manuel requis.',
+      restoreToOriginalConfirmButton: 'Oui, écraser et restaurer',
       description:
         "Saisissez les informations de la base de données où la sauvegarde sera restaurée. <underline>Créez d'abord une base de données vide pour la restauration</underline>. Pendant la restauration, toutes ses données actuelles seront effacées",
       notInUseHint:

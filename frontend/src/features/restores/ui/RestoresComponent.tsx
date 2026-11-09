@@ -90,6 +90,9 @@ export const RestoresComponent = ({ database, backup }: Props) => {
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [restoreToCancelId, setRestoreToCancelId] = useState<string | undefined>();
 
+  const [isRestoringToOriginal, setIsRestoringToOriginal] = useState(false);
+  const [showRestoreToOriginalConfirmation, setShowRestoreToOriginalConfirmation] = useState(false);
+
   const isReloadInProgress = useRef(false);
 
   const loadRestores = async () => {
@@ -107,6 +110,21 @@ export const RestoresComponent = ({ database, backup }: Props) => {
     }
 
     isReloadInProgress.current = false;
+  };
+
+  const restoreToOriginal = async () => {
+    setIsRestoringToOriginal(true);
+    try {
+      await restoreApi.restoreBackup({
+        backupId: backup.id,
+        restoreToOriginalDatabase: true,
+      });
+      await loadRestores();
+    } catch (e) {
+      alert(translateApiError(e, t));
+    } finally {
+      setIsRestoringToOriginal(false);
+    }
   };
 
   const restore = async (editingDatabase: Database) => {
@@ -185,15 +203,26 @@ export const RestoresComponent = ({ database, backup }: Props) => {
         </div>
       ) : (
         <>
-          <Button
-            className="w-full"
-            type="primary"
-            disabled={isRestoreInProgress}
-            loading={isRestoreInProgress}
-            onClick={() => setIsShowRestore(true)}
-          >
-            {t('restores.targetDatabase.select')}
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button
+              className="w-full"
+              type="primary"
+              danger
+              disabled={isRestoreInProgress}
+              loading={isRestoringToOriginal || isRestoreInProgress}
+              onClick={() => setShowRestoreToOriginalConfirmation(true)}
+            >
+              {t('restores.targetDatabase.restoreToOriginal')}
+            </Button>
+            <Button
+              className="w-full"
+              type="default"
+              disabled={isRestoreInProgress}
+              onClick={() => setIsShowRestore(true)}
+            >
+              {t('restores.targetDatabase.select')}
+            </Button>
+          </div>
 
           {restores.length === 0 && (
             <div className="my-5 text-center text-gray-400">{t('restores.list.empty')}</div>
@@ -388,6 +417,37 @@ export const RestoresComponent = ({ database, backup }: Props) => {
             </>
           }
           actionText={t('restores.cancelConfirmation.confirm')}
+          actionButtonColor="red"
+        />
+      )}
+
+      {showRestoreToOriginalConfirmation && (
+        <ConfirmationComponent
+          onConfirm={() => {
+            setShowRestoreToOriginalConfirmation(false);
+            restoreToOriginal();
+          }}
+          onDecline={() => {
+            setShowRestoreToOriginalConfirmation(false);
+          }}
+          description={
+            <>
+              <div className="font-semibold text-red-600">
+                {t('restores.targetDatabase.restoreToOriginalWarningTitle')}
+              </div>
+              <div className="mt-2">
+                <Trans
+                  i18nKey="restores.targetDatabase.restoreToOriginalWarningBody"
+                  values={{ name: database.name }}
+                  components={{ bold: <strong /> }}
+                />
+              </div>
+              <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                {t('restores.targetDatabase.restoreToOriginalWarningHint')}
+              </div>
+            </>
+          }
+          actionText={t('restores.targetDatabase.restoreToOriginalConfirmButton')}
           actionButtonColor="red"
         />
       )}

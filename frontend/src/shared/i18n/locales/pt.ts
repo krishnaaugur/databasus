@@ -712,6 +712,13 @@ export const pt: typeof en = {
     },
     targetDatabase: {
       select: 'Selecione o banco de dados de destino da restauração',
+      restoreToOriginal: 'Restaurar no banco de dados original (Substituir)',
+      restoreToOriginalWarningTitle: 'Substituir os dados do banco de dados existente?',
+      restoreToOriginalWarningBody:
+        'Isso conectará diretamente ao <bold>{{name}}</bold> usando suas credenciais salvas e substituirá todos os dados existentes com este backup.',
+      restoreToOriginalWarningHint:
+        'Quaisquer alterações feitas desde este backup serão substituídas. Nenhuma credencial manual necessária.',
+      restoreToOriginalConfirmButton: 'Sim, substituir e restaurar',
       description:
         'Informe os dados do banco de dados em que o backup será restaurado. <underline>O banco de dados vazio para a restauração precisa ser criado antes</underline>. Durante a restauração, todos os dados atuais dele serão apagados',
       notInUseHint:

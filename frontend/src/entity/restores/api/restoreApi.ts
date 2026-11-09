@@ -20,12 +20,14 @@ export const restoreApi = {
 
   async restoreBackup({
     backupId,
+    restoreToOriginalDatabase,
     postgresql,
     mysql,
     mariadb,
     mongodb,
   }: {
     backupId: string;
+    restoreToOriginalDatabase?: boolean;
     postgresql?: PostgresqlLogicalDatabase;
     mysql?: MysqlDatabase;
     mariadb?: MariadbDatabase;
@@ -34,6 +36,7 @@ export const restoreApi = {
     const requestOptions: RequestOptions = new RequestOptions();
     requestOptions.setBody(
       JSON.stringify({
+        restoreToOriginalDatabase,
         postgresqlDatabase: postgresql,
         mysqlDatabase: mysql,
         mariadbDatabase: mariadb,
