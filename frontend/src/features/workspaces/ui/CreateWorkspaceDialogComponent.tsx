@@ -34,7 +34,9 @@ export const CreateWorkspaceDialogComponent = ({
   );
 
   const isAllowedToCreateWorkspaces =
-    globalSettings.isMemberAllowedToCreateWorkspaces || user.role === UserRole.ADMIN;
+    globalSettings.isMemberAllowedToCreateWorkspaces ||
+    user.role === UserRole.ADMIN ||
+    Boolean(user.canCreateWorkspaces);
 
   const handleCreateWorkspace = async () => {
     if (!workspaceName.trim()) {

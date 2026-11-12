@@ -1,5 +1,5 @@
 import { ApartmentOutlined, LoadingOutlined } from '@ant-design/icons';
-import { App, Button, Drawer, Input, Select, Spin, Switch, Table } from 'antd';
+import { App, Button, Drawer, Input, Select, Spin, Switch, Table, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -48,6 +48,7 @@ export function UsersComponent({ contentHeight }: Props) {
 
   const [processingUsers, setProcessingUsers] = useState<Set<string>>(new Set());
   const [changingRoleUsers, setChangingRoleUsers] = useState<Set<string>>(new Set());
+  const [changingPermissionUsers, setChangingPermissionUsers] = useState<Set<string>>(new Set());
 
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -200,6 +201,29 @@ export function UsersComponent({ contentHeight }: Props) {
     }
   };
 
+  const handleWorkspacePermissionToggle = async (
+    userId: string,
+    currentPermission?: boolean,
+  ) => {
+    const newPermission = !currentPermission;
+    setChangingPermissionUsers((prev) => new Set(prev).add(userId));
+    try {
+      await userManagementApi.updateWorkspaceCreationPermission(userId, newPermission);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, canCreateWorkspaces: newPermission } : u)),
+      );
+      message.success('Workspace creation permission updated');
+    } catch (e: unknown) {
+      message.error(translateApiError(e, t));
+    } finally {
+      setChangingPermissionUsers((prev) => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    }
+  };
+
   const handleRowClick = (user: UserProfile) => {
     setSelectedUser(user);
     setIsDrawerOpen(true);
@@ -250,7 +274,7 @@ export function UsersComponent({ contentHeight }: Props) {
       title: t('users.list.columns.isActive'),
       dataIndex: 'isActive',
       key: 'isActive',
-      width: 200,
+      width: 140,
       render: (isActive: boolean, record: UserProfile) => (
         <Switch
           checked={isActive}
@@ -263,6 +287,35 @@ export function UsersComponent({ contentHeight }: Props) {
           }}
         />
       ),
+    },
+    {
+      title: 'Can create workspaces?',
+      key: 'canCreateWorkspaces',
+      width: 200,
+      render: (_, record: UserProfile) => {
+        const isAdmin = record.role === UserRole.ADMIN;
+        const checked = isAdmin || Boolean(record.canCreateWorkspaces);
+        return (
+          <Tooltip
+            title={
+              isAdmin ? 'Admins always have permission to create workspaces' : undefined
+            }
+          >
+            <Switch
+              checked={checked}
+              disabled={isAdmin || changingPermissionUsers.has(record.id)}
+              loading={changingPermissionUsers.has(record.id)}
+              onChange={() =>
+                handleWorkspacePermissionToggle(record.id, record.canCreateWorkspaces)
+              }
+              size="small"
+              style={{
+                backgroundColor: checked ? '#155dfc' : undefined,
+              }}
+            />
+          </Tooltip>
+        );
+      },
     },
     {
       title: t('users.list.columns.created'),
@@ -359,6 +412,25 @@ export function UsersComponent({ contentHeight }: Props) {
               }}
             />
           </div>
+        </div>
+
+        <div className="mb-3 flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-700">
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            Can create workspaces?
+          </span>
+          <Switch
+            checked={user.role === UserRole.ADMIN || Boolean(user.canCreateWorkspaces)}
+            disabled={user.role === UserRole.ADMIN || changingPermissionUsers.has(user.id)}
+            loading={changingPermissionUsers.has(user.id)}
+            onChange={() =>
+              handleWorkspacePermissionToggle(user.id, user.canCreateWorkspaces)
+            }
+            size="small"
+            style={{
+              backgroundColor:
+                user.role === UserRole.ADMIN || user.canCreateWorkspaces ? '#155dfc' : undefined,
+            }}
+          />
         </div>
 
         <div className="flex gap-2">

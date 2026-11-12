@@ -124,7 +124,9 @@ export const MainScreenComponent = () => {
   const isCanManageDBs = selectedWorkspace?.userRole !== WorkspaceRole.VIEWER;
 
   const canCreateWorkspace = Boolean(
-    user?.role === UserRole.ADMIN || globalSettings?.isMemberAllowedToCreateWorkspaces,
+    user?.role === UserRole.ADMIN ||
+      user?.canCreateWorkspaces ||
+      globalSettings?.isMemberAllowedToCreateWorkspaces,
   );
 
   const tabs: SidebarTab[] = [

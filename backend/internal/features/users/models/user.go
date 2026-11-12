@@ -23,6 +23,7 @@ type User struct {
 	GitHubOAuthID        *string                `json:"-"         gorm:"column:github_oauth_id"`
 	GoogleOAuthID        *string                `json:"-"         gorm:"column:google_oauth_id"`
 	IsRootAdmin          bool                   `json:"-"         gorm:"column:is_root_admin"`
+	CanCreateWorkspaces  bool                   `json:"canCreateWorkspaces" gorm:"column:can_create_workspaces"`
 	CreatedAt            time.Time              `json:"createdAt"`
 }
 
@@ -49,6 +50,9 @@ func (u *User) CanUpdateSettings() bool {
 
 func (u *User) CanCreateWorkspaces(settings *UsersSettings) bool {
 	if u.Role == users_enums.UserRoleAdmin {
+		return true
+	}
+	if u.CanCreateWorkspaces {
 		return true
 	}
 	return u.Role == users_enums.UserRoleMember && settings != nil && settings.IsMemberAllowedToCreateWorkspaces

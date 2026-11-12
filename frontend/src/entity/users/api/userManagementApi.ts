@@ -68,4 +68,16 @@ export const userManagementApi = {
       requestOptions,
     );
   },
+
+  async updateWorkspaceCreationPermission(
+    userId: string,
+    canCreateWorkspaces: boolean,
+  ): Promise<{ message: string }> {
+    const requestOptions: RequestOptions = new RequestOptions();
+    requestOptions.setBody(JSON.stringify({ canCreateWorkspaces }));
+    return apiHelper.fetchPutJson(
+      `${getApplicationServer()}/api/v1/users/${userId}/workspace-creation-permission`,
+      requestOptions,
+    );
+  },
 };

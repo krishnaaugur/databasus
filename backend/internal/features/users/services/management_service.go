@@ -171,3 +171,33 @@ func (s *UserManagementService) ChangeUserRole(
 
 	return nil
 }
+
+func (s *UserManagementService) UpdateUserWorkspaceCreationPermission(
+	ctx context.Context,
+	userID uuid.UUID,
+	canCreate bool,
+	changedBy *user_models.User,
+) error {
+	if !changedBy.CanManageUsers() {
+		return errors.New("insufficient permissions to change user permissions")
+	}
+
+	user, err := s.userRepository.GetUserByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+
+	if err := s.userRepository.UpdateUserWorkspaceCreationPermission(userID, canCreate); err != nil {
+		return fmt.Errorf("failed to update workspace creation permission: %w", err)
+	}
+
+	if s.auditLogWriter != nil {
+		s.auditLogWriter.WriteAuditLog(ctx, audit_logs_models.AuditEntry{
+			Message:     fmt.Sprintf("User workspace creation permission changed: %s -> %v", user.Email, canCreate),
+			UserID:      &changedBy.ID,
+			WorkspaceID: nil,
+		})
+	}
+
+	return nil
+}

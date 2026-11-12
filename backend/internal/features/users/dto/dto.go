@@ -102,12 +102,17 @@ type InviteUserResponseDTO struct {
 }
 
 type UserProfileResponseDTO struct {
-	ID        uuid.UUID            `json:"id"`
-	Email     string               `json:"email"`
-	Name      string               `json:"name"`
-	Role      users_enums.UserRole `json:"role"`
-	IsActive  bool                 `json:"isActive"`
-	CreatedAt time.Time            `json:"createdAt"`
+	ID                  uuid.UUID            `json:"id"`
+	Email               string               `json:"email"`
+	Name                string               `json:"name"`
+	Role                users_enums.UserRole `json:"role"`
+	IsActive            bool                 `json:"isActive"`
+	CanCreateWorkspaces bool                 `json:"canCreateWorkspaces"`
+	CreatedAt           time.Time            `json:"createdAt"`
+}
+
+type UpdateWorkspaceCreationPermissionRequestDTO struct {
+	CanCreateWorkspaces bool `json:"canCreateWorkspaces"`
 }
 
 type ListUsersResponseDTO struct {

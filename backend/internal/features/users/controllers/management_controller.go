@@ -35,6 +35,11 @@ func (c *ManagementController) RegisterRoutes(router *gin.RouterGroup) {
 		user_middleware.RequireRole(user_enums.UserRoleAdmin),
 		c.ChangeUserRole,
 	)
+	router.PUT(
+		"/users/:id/workspace-creation-permission",
+		user_middleware.RequireRole(user_enums.UserRoleAdmin),
+		c.UpdateUserWorkspaceCreationPermission,
+	)
 }
 
 // ListUsers
@@ -91,12 +96,13 @@ func (c *ManagementController) GetUsers(ctx *gin.Context) {
 	userProfiles := make([]user_dto.UserProfileResponseDTO, len(users))
 	for i, u := range users {
 		userProfiles[i] = user_dto.UserProfileResponseDTO{
-			ID:        u.ID,
-			Email:     u.Email,
-			Name:      u.Name,
-			Role:      u.Role,
-			IsActive:  u.IsActiveUser(),
-			CreatedAt: u.CreatedAt,
+			ID:                  u.ID,
+			Email:               u.Email,
+			Name:                u.Name,
+			Role:                u.Role,
+			IsActive:            u.IsActiveUser(),
+			CanCreateWorkspaces: u.CanCreateWorkspaces,
+			CreatedAt:           u.CreatedAt,
 		}
 	}
 
@@ -141,12 +147,13 @@ func (c *ManagementController) GetUserProfile(ctx *gin.Context) {
 	}
 
 	profile := user_dto.UserProfileResponseDTO{
-		ID:        user.ID,
-		Email:     user.Email,
-		Name:      user.Name,
-		Role:      user.Role,
-		IsActive:  user.IsActiveUser(),
-		CreatedAt: user.CreatedAt,
+		ID:                  user.ID,
+		Email:               user.Email,
+		Name:                user.Name,
+		Role:                user.Role,
+		IsActive:            user.IsActiveUser(),
+		CanCreateWorkspaces: user.CanCreateWorkspaces,
+		CreatedAt:           user.CreatedAt,
 	}
 
 	ctx.JSON(http.StatusOK, profile)
@@ -258,4 +265,51 @@ func (c *ManagementController) ChangeUserRole(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "User role changed successfully"})
+}
+
+// UpdateUserWorkspaceCreationPermission
+// @Summary Update user workspace creation permission
+// @Description Grant or revoke workspace creation permission for a user (admin only)
+// @Tags user-management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "User ID"
+// @Param request body users_dto.UpdateWorkspaceCreationPermissionRequestDTO true "Permission update data"
+// @Success 200 {object} map[string]string "Success message"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Router /users/{id}/workspace-creation-permission [put]
+func (c *ManagementController) UpdateUserWorkspaceCreationPermission(ctx *gin.Context) {
+	currentUser, ok := user_middleware.GetUserFromContext(ctx)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	userIDStr := ctx.Param("id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var request user_dto.UpdateWorkspaceCreationPermissionRequestDTO
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	if err := c.managementService.UpdateUserWorkspaceCreationPermission(
+		ctx.Request.Context(),
+		userID,
+		request.CanCreateWorkspaces,
+		currentUser,
+	); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Workspace creation permission updated successfully"})
 }

@@ -6,5 +6,6 @@ export interface UserProfile {
   name: string;
   role: UserRole;
   isActive: boolean;
+  canCreateWorkspaces?: boolean;
   createdAt: Date;
 }

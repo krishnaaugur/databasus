@@ -136,6 +136,14 @@ func (r *UserRepository) UpdateUserRole(userID uuid.UUID, role users_enums.UserR
 		}).Error
 }
 
+func (r *UserRepository) UpdateUserWorkspaceCreationPermission(userID uuid.UUID, canCreate bool) error {
+	return storage.GetDb().Model(&users_models.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{
+			"can_create_workspaces": canCreate,
+		}).Error
+}
+
 func (r *UserRepository) GetAdmins(ctx context.Context) ([]*users_models.User, error) {
 	var admins []*users_models.User
 

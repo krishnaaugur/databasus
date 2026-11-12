@@ -422,12 +422,13 @@ func (s *UserService) GetCurrentUserProfile(
 	user *users_models.User,
 ) *users_dto.UserProfileResponseDTO {
 	return &users_dto.UserProfileResponseDTO{
-		ID:        user.ID,
-		Email:     user.Email,
-		Name:      user.Name,
-		Role:      user.Role,
-		IsActive:  user.IsActiveUser(),
-		CreatedAt: user.CreatedAt,
+		ID:                  user.ID,
+		Email:               user.Email,
+		Name:                user.Name,
+		Role:                user.Role,
+		IsActive:            user.IsActiveUser(),
+		CanCreateWorkspaces: user.CanCreateWorkspaces,
+		CreatedAt:           user.CreatedAt,
 	}
 }
 
