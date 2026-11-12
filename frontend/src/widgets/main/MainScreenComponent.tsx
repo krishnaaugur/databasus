@@ -1,4 +1,4 @@
-import { LoadingOutlined, MenuOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, LoadingOutlined, MenuOutlined } from '@ant-design/icons';
 import { App, Button, Spin, Tooltip } from 'antd';
 import { useEffect, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import { type DiskUsage, diskApi } from '../../entity/disk';
 import {
   type UserProfile,
   type UsersSettings,
+  UserRole,
   WorkspaceRole,
   settingsApi,
   userApi,
@@ -122,6 +123,10 @@ export const MainScreenComponent = () => {
 
   const isCanManageDBs = selectedWorkspace?.userRole !== WorkspaceRole.VIEWER;
 
+  const canCreateWorkspace = Boolean(
+    user?.role === UserRole.ADMIN || globalSettings?.isMemberAllowedToCreateWorkspaces,
+  );
+
   const tabs: SidebarTab[] = [
     {
       text: t('app.navigation.databases'),
@@ -209,6 +214,7 @@ export const MainScreenComponent = () => {
             <WorkspaceSelectionComponent
               workspaces={workspaces}
               selectedWorkspace={selectedWorkspace}
+              canCreateWorkspace={canCreateWorkspace}
               onCreateWorkspace={handleCreateWorkspace}
               onWorkspaceSelect={setSelectedWorkspace}
             />
@@ -306,19 +312,36 @@ export const MainScreenComponent = () => {
             <>
               {workspaces.length === 0 ? (
                 <div className="flex-1 md:pl-3">
-                  <div
-                    className="flex grow items-center justify-center rounded"
-                    style={{ height: contentHeight }}
-                  >
-                    <Button
-                      type="primary"
-                      size="large"
-                      onClick={handleCreateWorkspace}
-                      className="border-blue-600 bg-blue-600 hover:border-blue-700 hover:bg-blue-700"
+                  {canCreateWorkspace ? (
+                    <div
+                      className="flex grow items-center justify-center rounded"
+                      style={{ height: contentHeight }}
                     >
-                      {t('app.workspaceSelection.create')}
-                    </Button>
-                  </div>
+                      <Button
+                        type="primary"
+                        size="large"
+                        onClick={handleCreateWorkspace}
+                        className="border-blue-600 bg-blue-600 hover:border-blue-700 hover:bg-blue-700"
+                      >
+                        {t('app.workspaceSelection.create')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex grow flex-col items-center justify-center rounded bg-white p-8 text-center shadow dark:bg-gray-800"
+                      style={{ height: contentHeight }}
+                    >
+                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 dark:bg-gray-700">
+                        <ApartmentOutlined className="text-3xl text-blue-500" />
+                      </div>
+                      <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                        No Workspaces Assigned
+                      </h2>
+                      <p className="mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">
+                        You do not currently have access to any workspaces. An administrator must assign you to a workspace or grant you permissions before you can view databases or run backup tasks.
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>

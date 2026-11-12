@@ -22,7 +22,7 @@ func (r *UsersSettingsRepository) GetSettings(ctx context.Context) (*user_models
 				ID:                                uuid.New(),
 				IsAllowExternalRegistrations:      true,
 				IsAllowMemberInvitations:          true,
-				IsMemberAllowedToCreateWorkspaces: true,
+				IsMemberAllowedToCreateWorkspaces: false,
 			}
 
 			if createErr := storage.GetDb().WithContext(ctx).Create(defaultSettings).Error; createErr != nil {

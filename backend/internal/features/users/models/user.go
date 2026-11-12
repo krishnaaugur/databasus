@@ -51,7 +51,7 @@ func (u *User) CanCreateWorkspaces(settings *UsersSettings) bool {
 	if u.Role == users_enums.UserRoleAdmin {
 		return true
 	}
-	return u.Role == users_enums.UserRoleMember && settings.IsMemberAllowedToCreateWorkspaces
+	return u.Role == users_enums.UserRoleMember && settings != nil && settings.IsMemberAllowedToCreateWorkspaces
 }
 
 func (u *User) IsActiveUser() bool {

@@ -8,6 +8,7 @@ import { useIsMobile } from '../../shared/hooks';
 interface Props {
   workspaces: WorkspaceResponse[];
   selectedWorkspace?: WorkspaceResponse;
+  canCreateWorkspace?: boolean;
   onCreateWorkspace: () => void;
   onWorkspaceSelect: (workspace: WorkspaceResponse) => void;
 }
@@ -15,6 +16,7 @@ interface Props {
 export const WorkspaceSelectionComponent = ({
   workspaces,
   selectedWorkspace,
+  canCreateWorkspace = false,
   onCreateWorkspace,
   onWorkspaceSelect,
 }: Props) => {
@@ -50,6 +52,14 @@ export const WorkspaceSelectionComponent = ({
   }, []);
 
   if (workspaces.length === 0) {
+    if (!canCreateWorkspace) {
+      return (
+        <div className="rounded bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+          {t('app.workspaceSelection.noWorkspaces', 'No workspaces')}
+        </div>
+      );
+    }
+
     return (
       <Button
         type="primary"
@@ -121,18 +131,20 @@ export const WorkspaceSelectionComponent = ({
               )}
             </div>
 
-            <div className="border-t border-gray-100 dark:border-gray-700">
-              <div
-                className="cursor-pointer px-3 py-2 text-sm text-blue-600 hover:bg-gray-50 hover:text-blue-700 dark:hover:bg-gray-700"
-                onClick={() => {
-                  onCreateWorkspace();
-                  setIsDropdownOpen(false);
-                  setSearchValue('');
-                }}
-              >
-                {t('app.workspaceSelection.createNew')}
+            {canCreateWorkspace && (
+              <div className="border-t border-gray-100 dark:border-gray-700">
+                <div
+                  className="cursor-pointer px-3 py-2 text-sm text-blue-600 hover:bg-gray-50 hover:text-blue-700 dark:hover:bg-gray-700"
+                  onClick={() => {
+                    onCreateWorkspace();
+                    setIsDropdownOpen(false);
+                    setSearchValue('');
+                  }}
+                >
+                  {t('app.workspaceSelection.createNew')}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>
