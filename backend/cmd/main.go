@@ -21,6 +21,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"databasus-backend/internal/config"
+	"databasus-backend/internal/features/api_keys"
 	"databasus-backend/internal/features/audit_logs"
 	"databasus-backend/internal/features/backups/backups/backuping/logical"
 	backuping_physical "databasus-backend/internal/features/backups/backups/backuping/physical"
@@ -404,6 +405,7 @@ func setUpRoutes(r *gin.Engine) {
 	audit_logs.GetAuditLogController().RegisterRoutes(protected)
 	users_controllers.GetManagementController().RegisterRoutes(protected)
 	users_controllers.GetSettingsController().RegisterRoutes(protected)
+	api_keys.GetAPIKeyController().RegisterRoutes(protected)
 	verification_agents.GetAgentController().RegisterRoutes(protected)
 	verification_config.GetVerificationConfigController().RegisterRoutes(protected)
 	verification_runs.GetVerificationController().RegisterRoutes(protected)
