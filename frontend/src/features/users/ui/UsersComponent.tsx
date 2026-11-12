@@ -1,4 +1,4 @@
-import { LoadingOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, LoadingOutlined } from '@ant-design/icons';
 import { App, Button, Drawer, Input, Select, Spin, Switch, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -14,6 +14,7 @@ import { useIsMobile } from '../../../shared/hooks';
 import { translateApiError, useLocale } from '../../../shared/i18n';
 import { getUserTimeFormat } from '../../../shared/time';
 import { UserAuditLogsSidebarComponent } from './UserAuditLogsSidebarComponent';
+import { UserWorkspacesModal } from './UserWorkspacesModal';
 
 interface Props {
   contentHeight: number;
@@ -50,6 +51,9 @@ export function UsersComponent({ contentHeight }: Props) {
 
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const [workspaceModalUser, setWorkspaceModalUser] = useState<UserProfile | null>(null);
+  const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef(false);
@@ -282,7 +286,18 @@ export function UsersComponent({ contentHeight }: Props) {
       title: '',
       key: 'empty',
       render: (_, record: UserProfile) => (
-        <div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="default"
+            size="small"
+            icon={<ApartmentOutlined />}
+            onClick={() => {
+              setWorkspaceModalUser(record);
+              setIsWorkspaceModalOpen(true);
+            }}
+          >
+            Workspaces
+          </Button>
           <Button type="primary" ghost size="small" onClick={() => handleRowClick(record)}>
             {t('users.list.viewAuditLogs')}
           </Button>
@@ -346,15 +361,29 @@ export function UsersComponent({ contentHeight }: Props) {
           </div>
         </div>
 
-        <Button
-          type="primary"
-          ghost
-          size="small"
-          onClick={() => handleRowClick(user)}
-          className="w-full"
-        >
-          {t('users.list.viewAuditLogs')}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            type="default"
+            size="small"
+            icon={<ApartmentOutlined />}
+            className="flex-1"
+            onClick={() => {
+              setWorkspaceModalUser(user);
+              setIsWorkspaceModalOpen(true);
+            }}
+          >
+            Workspaces
+          </Button>
+          <Button
+            type="primary"
+            ghost
+            size="small"
+            onClick={() => handleRowClick(user)}
+            className="flex-1"
+          >
+            {t('users.list.viewAuditLogs')}
+          </Button>
+        </div>
       </div>
     );
   };
@@ -442,6 +471,16 @@ export function UsersComponent({ contentHeight }: Props) {
       >
         {selectedUser && <UserAuditLogsSidebarComponent user={selectedUser} />}
       </Drawer>
+
+      {/* Workspaces assignment modal */}
+      <UserWorkspacesModal
+        user={workspaceModalUser}
+        open={isWorkspaceModalOpen}
+        onClose={() => {
+          setIsWorkspaceModalOpen(false);
+          setWorkspaceModalUser(null);
+        }}
+      />
     </div>
   );
 }
