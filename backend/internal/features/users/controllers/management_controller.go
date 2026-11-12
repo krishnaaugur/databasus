@@ -101,7 +101,7 @@ func (c *ManagementController) GetUsers(ctx *gin.Context) {
 			Name:                u.Name,
 			Role:                u.Role,
 			IsActive:            u.IsActiveUser(),
-			CanCreateWorkspaces: u.CanCreateWorkspaces,
+			CanCreateWorkspaces: u.CanCreateWorkspacesFlag,
 			CreatedAt:           u.CreatedAt,
 		}
 	}
@@ -152,7 +152,7 @@ func (c *ManagementController) GetUserProfile(ctx *gin.Context) {
 		Name:                user.Name,
 		Role:                user.Role,
 		IsActive:            user.IsActiveUser(),
-		CanCreateWorkspaces: user.CanCreateWorkspaces,
+		CanCreateWorkspaces: user.CanCreateWorkspacesFlag,
 		CreatedAt:           user.CreatedAt,
 	}
 

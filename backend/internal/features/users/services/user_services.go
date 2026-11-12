@@ -427,7 +427,7 @@ func (s *UserService) GetCurrentUserProfile(
 		Name:                user.Name,
 		Role:                user.Role,
 		IsActive:            user.IsActiveUser(),
-		CanCreateWorkspaces: user.CanCreateWorkspaces,
+		CanCreateWorkspaces: user.CanCreateWorkspacesFlag,
 		CreatedAt:           user.CreatedAt,
 	}
 }
