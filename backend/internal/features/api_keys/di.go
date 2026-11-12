@@ -21,6 +21,10 @@ func GetAPIKeyService() *APIKeyService {
 	return apiKeyService
 }
 
+func GetAPIKeyRepository() *APIKeyRepository {
+	return apiKeyRepository
+}
+
 func GetAPIKeyController() *APIKeyController {
 	return apiKeyController
 }

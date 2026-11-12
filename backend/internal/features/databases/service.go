@@ -14,6 +14,7 @@ import (
 	audit_logs "databasus-backend/internal/features/audit_logs"
 	audit_logs_models "databasus-backend/internal/features/audit_logs/models"
 	physical_core_service "databasus-backend/internal/features/backups/backups/core/physical/service"
+	"databasus-backend/internal/features/database_access"
 	postgresql_physical "databasus-backend/internal/features/databases/databases/postgresql/physical"
 	"databasus-backend/internal/features/notifiers"
 	users_models "databasus-backend/internal/features/users/models"
@@ -263,7 +264,9 @@ func (s *DatabaseService) DeleteDatabase(
 		return errors.New("cannot delete database without workspace")
 	}
 
-	canManage, err := s.workspaceService.CanUserManageDBs(ctx, *existingDatabase.WorkspaceID, user)
+	canManage, err := database_access.GetDatabaseAccessService().CanAccess(
+		ctx, user, nil, existingDatabase.WorkspaceID, existingDatabase.ID, database_access.ActionManage,
+	)
 	if err != nil {
 		return err
 	}
@@ -359,6 +362,16 @@ func (s *DatabaseService) GetDatabase(
 		return nil, errors.New("insufficient permissions to access this database")
 	}
 
+	canView, err := database_access.GetDatabaseAccessService().CanAccess(
+		ctx, user, nil, database.WorkspaceID, database.ID, database_access.ActionView,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if !canView {
+		return nil, errors.New("insufficient permissions to access this database")
+	}
+
 	database.HideSensitiveData()
 	return database, nil
 }
@@ -381,13 +394,20 @@ func (s *DatabaseService) GetDatabasesByWorkspace(
 		return nil, err
 	}
 
+	filtered := make([]*Database, 0, len(databases))
 	for _, database := range databases {
-		database.HideSensitiveData()
+		canView, _ := database_access.GetDatabaseAccessService().CanAccess(
+			ctx, user, nil, &workspaceID, database.ID, database_access.ActionView,
+		)
+		if canView {
+			database.HideSensitiveData()
+			filtered = append(filtered, database)
+		}
 	}
 
-	s.fillPhysicalLastBackupTimes(ctx, databases)
+	s.fillPhysicalLastBackupTimes(ctx, filtered)
 
-	return databases, nil
+	return filtered, nil
 }
 
 func (s *DatabaseService) IsNotifierUsing(

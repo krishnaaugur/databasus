@@ -4,6 +4,7 @@ import {
   CopyOutlined,
   DeleteOutlined,
   InfoCircleOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons';
 import { Button, Input } from 'antd';
 import { useEffect, useState } from 'react';
@@ -28,6 +29,7 @@ import {
   EditBackupVerificationConfigComponent,
   ShowBackupVerificationConfigComponent,
 } from '../../verification/config';
+import { DatabaseAccessModal } from './DatabaseAccessModal';
 import { DatabaseTransferDialogComponent } from './DatabaseTransferDialogComponent';
 import { EditDatabaseNotifiersComponent } from './edit/EditDatabaseNotifiersComponent';
 import { EditDatabaseSpecificDataComponent } from './edit/EditDatabaseSpecificDataComponent';
@@ -62,6 +64,7 @@ export const DatabaseConfigComponent = ({
   const [isEditNotifiersSettings, setIsEditNotifiersSettings] = useState(false);
   const [isEditHealthcheckSettings, setIsEditHealthcheckSettings] = useState(false);
   const [isEditVerificationConfig, setIsEditVerificationConfig] = useState(false);
+  const [isShowAccessModal, setIsShowAccessModal] = useState(false);
 
   const [isNameUnsaved, setIsNameUnsaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -495,6 +498,15 @@ export const DatabaseConfigComponent = ({
               <Button
                 type="primary"
                 ghost
+                icon={<SafetyOutlined />}
+                onClick={() => setIsShowAccessModal(true)}
+                className="sm:mr-1"
+                title="Database Access Control"
+              />
+
+              <Button
+                type="primary"
+                ghost
                 icon={<ArrowRightOutlined />}
                 onClick={() => setIsShowTransferDialog(true)}
                 className="sm:mr-1"
@@ -553,6 +565,16 @@ export const DatabaseConfigComponent = ({
             setIsShowTransferDialog(false);
             window.location.reload();
           }}
+        />
+      )}
+
+      {isShowAccessModal && database.id && database.workspaceId && (
+        <DatabaseAccessModal
+          databaseId={database.id}
+          databaseName={database.name}
+          workspaceId={database.workspaceId}
+          open={isShowAccessModal}
+          onClose={() => setIsShowAccessModal(false)}
         />
       )}
     </div>

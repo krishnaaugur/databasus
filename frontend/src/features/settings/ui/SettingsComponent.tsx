@@ -7,6 +7,7 @@ import { getApplicationServer } from '../../../constants';
 import { type UsersSettings, type UsersSettingsResponse, settingsApi } from '../../../entity/users';
 import { getWebsitePageUrl, translateApiError, useLocale } from '../../../shared/i18n';
 import { ClipboardHelper } from '../../../shared/lib/ClipboardHelper';
+import { ApiKeysComponent } from '../../api-keys';
 import { VerificationAgentsComponent } from '../../verification/agents';
 import { AuditLogsComponent } from './AuditLogsComponent';
 import { MailServerComponent } from './MailServerComponent';
@@ -324,6 +325,8 @@ export function SettingsComponent({ contentHeight }: Props) {
               </div>
             </div>
           </div>
+
+          <ApiKeysComponent />
 
           <VerificationAgentsComponent />
 
