@@ -192,3 +192,4 @@ func (s *APIKeyService) RevokeAPIKey(
 
 	return s.repository.Delete(ctx, id)
 }
+

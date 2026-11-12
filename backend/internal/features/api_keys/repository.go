@@ -74,3 +74,4 @@ func (r *APIKeyRepository) UpdateLastUsed(ctx context.Context, id uuid.UUID) err
 		Where("id = ?", id).
 		Update("last_used_at", &now).Error
 }
+

@@ -24,3 +24,4 @@ func GetAPIKeyService() *APIKeyService {
 func GetAPIKeyController() *APIKeyController {
 	return apiKeyController
 }
+

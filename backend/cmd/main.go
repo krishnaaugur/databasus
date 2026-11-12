@@ -584,6 +584,8 @@ func enableCors(ginApp *gin.Engine) {
 				"Content-Length",
 				"Content-Type",
 				"Authorization",
+				"X-API-Key",
+				"X-API-Secret",
 				"Accept",
 				"Accept-Language",
 				"Accept-Encoding",

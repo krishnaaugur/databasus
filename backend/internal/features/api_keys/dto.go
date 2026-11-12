@@ -32,3 +32,4 @@ type APIKeyResponse struct {
 	LastUsedAt  *time.Time `json:"lastUsedAt,omitempty"`
 	CreatedAt   time.Time  `json:"createdAt"`
 }
+

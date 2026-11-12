@@ -25,3 +25,4 @@ type APIKey struct {
 func (APIKey) TableName() string {
 	return "api_keys"
 }
+
