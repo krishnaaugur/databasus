@@ -1,3 +1,4 @@
+import { CodeOutlined } from '@ant-design/icons';
 import { Button, Modal, Spin } from 'antd';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +16,7 @@ interface Props {
   contentHeight: number;
   workspace: WorkspaceResponse;
   isCanManageDBs: boolean;
+  onNavigateToApiDocs?: () => void;
 }
 
 // eslint-disable-next-line i18next/no-literal-string -- localStorage key
@@ -27,7 +29,12 @@ const DATABASES_REFRESH_INTERVAL_MS = 30_000;
 // eslint-disable-next-line i18next/no-literal-string -- DOM event name
 const VISIBILITY_CHANGE_EVENT = 'visibilitychange';
 
-export const DatabasesComponent = ({ contentHeight, workspace, isCanManageDBs }: Props) => {
+export const DatabasesComponent = ({
+  contentHeight,
+  workspace,
+  isCanManageDBs,
+  onNavigateToApiDocs,
+}: Props) => {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
   const [isLoading, setIsLoading] = useState(true);
@@ -202,6 +209,38 @@ export const DatabasesComponent = ({ contentHeight, workspace, isCanManageDBs }:
               }}
               isCanManageDBs={isCanManageDBs}
             />
+          </div>
+        )}
+
+        {!isMobile && databases.length === 0 && (
+          <div
+            className="flex flex-1 flex-col items-center justify-center rounded bg-white p-8 text-center shadow dark:bg-gray-800"
+            style={{ height: contentHeight }}
+          >
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 dark:bg-gray-700">
+              <CodeOutlined className="text-3xl text-blue-500" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              {/* eslint-disable-next-line i18next/no-literal-string -- empty state header */}
+              {'Ready for SaaS Integration'}
+            </h2>
+            <p className="mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">
+              {/* eslint-disable-next-line i18next/no-literal-string -- empty state body */}
+              {
+                'Integrate automated database backups and restores into your project using your API credentials and client-side zero-knowledge encryption key.'
+              }
+            </p>
+            {onNavigateToApiDocs && (
+              <Button
+                type="primary"
+                size="large"
+                className="mt-6 border-blue-600 bg-blue-600 hover:border-blue-700 hover:bg-blue-700"
+                onClick={onNavigateToApiDocs}
+              >
+                {/* eslint-disable-next-line i18next/no-literal-string -- action button */}
+                {'View API Documentation & Keys'}
+              </Button>
+            )}
           </div>
         )}
       </div>

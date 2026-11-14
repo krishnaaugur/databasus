@@ -12,6 +12,7 @@ import type { Workspace } from '../../../entity/workspaces/model/Workspace';
 import type { WorkspaceResponse } from '../../../entity/workspaces/model/WorkspaceResponse';
 import { useIsMobile } from '../../../shared/hooks';
 import { translateApiError } from '../../../shared/i18n';
+import { ApiKeysComponent } from '../../api-keys';
 import { WorkspaceAuditLogsComponent } from './WorkspaceAuditLogsComponent';
 import { WorkspaceMembershipComponent } from './WorkspaceMembershipComponent';
 
@@ -238,6 +239,10 @@ export function WorkspaceSettingsComponent({ workspaceResponse, user, contentHei
                       </Button>
                     </div>
                   )}
+                </div>
+
+                <div className="max-w-2xl border-b border-gray-200 pb-6 dark:border-gray-700">
+                  <ApiKeysComponent workspaceId={workspaceResponse.id} />
                 </div>
 
                 <div className="max-w-2xl border-b border-gray-200 pb-6 dark:border-gray-700">

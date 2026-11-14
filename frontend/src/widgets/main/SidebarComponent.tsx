@@ -98,22 +98,24 @@ export const SidebarComponent = ({
           <div className="flex-1">
             {filteredTabs.map((tab) => (
               <div key={tab.text} className="flex justify-center">
-                <div
-                  className={`flex h-[50px] w-[50px] cursor-pointer items-center justify-center rounded select-none ${selectedTab === tab.name ? 'bg-blue-600' : 'hover:bg-blue-50 dark:hover:bg-gray-700'}`}
-                  onClick={() => handleTabClick(tab)}
-                  style={{ marginTop: tab.marginTop }}
-                >
-                  <div className="mb-1">
-                    <div className="flex justify-center">
-                      <img
-                        src={selectedTab === tab.name ? tab.selectedIcon : tab.icon}
-                        width={20}
-                        alt={tab.text}
-                        loading="lazy"
-                      />
+                <Tooltip title={tab.text} placement="right">
+                  <div
+                    className={`flex h-[50px] w-[50px] cursor-pointer items-center justify-center rounded select-none ${selectedTab === tab.name ? 'bg-blue-600' : 'hover:bg-blue-50 dark:hover:bg-gray-700'}`}
+                    onClick={() => handleTabClick(tab)}
+                    style={{ marginTop: tab.marginTop }}
+                  >
+                    <div className="mb-1">
+                      <div className="flex justify-center">
+                        <img
+                          src={selectedTab === tab.name ? tab.selectedIcon : tab.icon}
+                          width={20}
+                          alt={tab.text}
+                          loading="lazy"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                </Tooltip>
               </div>
             ))}
           </div>

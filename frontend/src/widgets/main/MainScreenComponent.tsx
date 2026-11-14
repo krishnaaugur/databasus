@@ -452,6 +452,7 @@ export const MainScreenComponent = () => {
                         contentHeight={contentHeight}
                         workspace={selectedWorkspace}
                         isCanManageDBs={isCanManageDBs}
+                        onNavigateToApiDocs={() => setSelectedTab('api-docs')}
                         key={`databases-${selectedWorkspace.id}`}
                       />
                     )}
