@@ -22,14 +22,22 @@ func ContextWithEncryptionKey(ctx context.Context, key string) context.Context {
 	return context.WithValue(ctx, encryptionKeyContextKey, key)
 }
 
-func EncryptionKeyFromContext(ctx context.Context) (string, bool) {
+func EncryptionKeyFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+
 	val := ctx.Value(encryptionKeyContextKey)
 	if val == nil {
-		return "", false
+		return ""
 	}
 
 	key, ok := val.(string)
-	return key, ok
+	if !ok {
+		return ""
+	}
+
+	return key
 }
 
 func applyEncryptionKeyHeader(ctx *gin.Context) {
