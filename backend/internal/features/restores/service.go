@@ -21,6 +21,7 @@ import (
 	"databasus-backend/internal/features/restores/usecases"
 	"databasus-backend/internal/features/storages"
 	tasks_cancellation "databasus-backend/internal/features/tasks/cancellation"
+	users_enums "databasus-backend/internal/features/users/enums"
 	users_models "databasus-backend/internal/features/users/models"
 	workspaces_services "databasus-backend/internal/features/workspaces/services"
 	"databasus-backend/internal/util/encryption"
@@ -127,6 +128,13 @@ func (s *RestoreService) RestoreBackupWithAuth(
 	}
 	if !canAccess {
 		return errors.New("insufficient permissions to restore this backup")
+	}
+
+	if user.Role == users_enums.UserRoleAdmin {
+		isDirectMember, err := s.workspaceService.IsUserDirectWorkspaceMember(ctx, *database.WorkspaceID, user.ID)
+		if err != nil || !isDirectMember {
+			return errors.New("super admin cannot restore tenant databases; only tenant users can perform restores")
+		}
 	}
 
 	backupDatabase, err := s.databaseService.GetDatabase(ctx, user, backup.DatabaseID)

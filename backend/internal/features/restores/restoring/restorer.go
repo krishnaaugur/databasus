@@ -93,8 +93,9 @@ func (r *Restorer) MakeRestore(
 		return
 	}
 
-	// Detached from the caller so a finished HTTP request cannot cancel a running restore.
-	executionCtx, cancel := context.WithCancel(context.Background())
+	// Detached from the caller so a finished HTTP request cannot cancel a running restore,
+	// while preserving context values such as encryption keys and request IDs.
+	executionCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	r.taskCancellationRegistry.RegisterTask(restore.ID, cancel)
 	defer r.taskCancellationRegistry.UnregisterTask(restore.ID)
 

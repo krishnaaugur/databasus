@@ -63,3 +63,20 @@ type WorkspaceMemberResponseDTO struct {
 type GetMembersResponseDTO struct {
 	Members []WorkspaceMemberResponseDTO `json:"members"`
 }
+
+// Telemetry DTOs for Super Admin
+type WorkspaceUserTelemetryDTO struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+	Name  string    `json:"name"`
+	Role  string    `json:"role"`
+}
+
+type WorkspaceTelemetryDTO struct {
+	WorkspaceID       uuid.UUID                   `json:"workspaceId"`
+	WorkspaceName     string                      `json:"workspaceName"`
+	Users             []WorkspaceUserTelemetryDTO `json:"users"`
+	DatabasesCount    int                         `json:"databasesCount"`
+	BackupsCount      int                         `json:"backupsCount"`
+	StorageConsumedMb float64                     `json:"storageConsumedMb"`
+}

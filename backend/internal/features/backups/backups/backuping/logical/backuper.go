@@ -67,8 +67,9 @@ func (b *Backuper) MakeBackup(ctx context.Context, backupID uuid.UUID, isCallNot
 		return
 	}
 
-	// Detached from the caller so a finished HTTP request cannot cancel a running backup.
-	executionCtx, cancel := context.WithCancel(context.Background())
+	// Detached from the caller so a finished HTTP request cannot cancel a running backup,
+	// while preserving context values such as encryption keys and request IDs.
+	executionCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	b.taskCancellationRegistry.RegisterTask(backup.ID, cancel)
 	defer b.taskCancellationRegistry.UnregisterTask(backup.ID)
 

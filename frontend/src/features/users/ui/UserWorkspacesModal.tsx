@@ -1,3 +1,4 @@
+/* eslint-disable i18next/no-literal-string -- workspace member management UI */
 import {
   ApartmentOutlined,
   DeleteOutlined,

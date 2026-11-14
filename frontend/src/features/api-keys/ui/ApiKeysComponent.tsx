@@ -1,31 +1,11 @@
-import {
-  CopyOutlined,
-  DeleteOutlined,
-  LoadingOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
-import {
-  Alert,
-  App,
-  Button,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Select,
-  Spin,
-  Table,
-  Tag,
-} from 'antd';
+/* eslint-disable i18next/no-literal-string -- API credentials and developer keys UI */
+import { CopyOutlined, DeleteOutlined, LoadingOutlined, PlusOutlined } from '@ant-design/icons';
+import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Spin, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 
-import {
-  type ApiKey,
-  type CreateApiKeyResponse,
-  apiKeysApi,
-} from '../../../entity/api-keys';
+import { type ApiKey, type CreateApiKeyResponse, apiKeysApi } from '../../../entity/api-keys';
 import { ClipboardHelper } from '../../../shared/lib/ClipboardHelper';
 
 interface Props {
@@ -91,7 +71,9 @@ export function ApiKeysComponent({ workspaceId }: Props) {
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      render: (name: string) => <span className="font-semibold text-gray-900 dark:text-white">{name}</span>,
+      render: (name: string) => (
+        <span className="font-semibold text-gray-900 dark:text-white">{name}</span>
+      ),
     },
     {
       title: 'Key ID',
@@ -124,16 +106,16 @@ export function ApiKeysComponent({ workspaceId }: Props) {
       title: 'Created At',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: string) => <span className="text-xs text-gray-500">{dayjs(date).format('YYYY-MM-DD HH:mm')}</span>,
+      render: (date: string) => (
+        <span className="text-xs text-gray-500">{dayjs(date).format('YYYY-MM-DD HH:mm')}</span>
+      ),
     },
     {
       title: 'Last Used',
       dataIndex: 'lastUsedAt',
       key: 'lastUsedAt',
       render: (date?: string) => (
-        <span className="text-xs text-gray-500">
-          {date ? dayjs(date).fromNow() : 'Never'}
-        </span>
+        <span className="text-xs text-gray-500">{date ? dayjs(date).fromNow() : 'Never'}</span>
       ),
     },
     {
@@ -160,7 +142,8 @@ export function ApiKeysComponent({ workspaceId }: Props) {
         <div>
           <h2 className="text-xl font-bold dark:text-white">API Keys & Programmatic Access</h2>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Manage programmatic API credentials for external applications (e.g. multi-tenant SaaS, CI/CD pipelines).
+            Manage programmatic API credentials for external applications (e.g. multi-tenant SaaS,
+            CI/CD pipelines).
           </p>
         </div>
         <Button
@@ -212,7 +195,9 @@ export function ApiKeysComponent({ workspaceId }: Props) {
             />
 
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase">Key ID (Public)</label>
+              <label className="text-xs font-semibold text-gray-500 uppercase">
+                Key ID (Public)
+              </label>
               <div className="mt-1 flex items-center space-x-2">
                 <Input value={newKeyResult.keyId} readOnly className="font-mono text-xs" />
                 <Button
@@ -226,9 +211,15 @@ export function ApiKeysComponent({ workspaceId }: Props) {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase">API Secret (Private)</label>
+              <label className="text-xs font-semibold text-gray-500 uppercase">
+                API Secret (Private)
+              </label>
               <div className="mt-1 flex items-center space-x-2">
-                <Input.Password value={newKeyResult.secret} readOnly className="font-mono text-xs" />
+                <Input.Password
+                  value={newKeyResult.secret}
+                  readOnly
+                  className="font-mono text-xs"
+                />
                 <Button
                   icon={<CopyOutlined />}
                   onClick={() => {
@@ -239,8 +230,41 @@ export function ApiKeysComponent({ workspaceId }: Props) {
               </div>
             </div>
 
+            {newKeyResult.encryptionKey && (
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-red-600 uppercase dark:text-red-400">
+                    One-Time Encryption Key (Zero-Knowledge)
+                  </label>
+                  <span className="text-[10px] text-red-500">
+                    Generated once • Cannot be recovered
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center space-x-2">
+                  <Input.Password
+                    value={newKeyResult.encryptionKey}
+                    readOnly
+                    className="border-red-300 font-mono text-xs dark:border-red-700"
+                  />
+                  <Button
+                    icon={<CopyOutlined />}
+                    onClick={() => {
+                      ClipboardHelper.copyToClipboard(newKeyResult.encryptionKey!);
+                      message.success('Encryption Key copied');
+                    }}
+                  />
+                </div>
+                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                  Your project backups will be encrypted with this key. The platform never stores
+                  this key.
+                </p>
+              </div>
+            )}
+
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase">Bearer Header Format</label>
+              <label className="text-xs font-semibold text-gray-500 uppercase">
+                Bearer Header Format
+              </label>
               <div className="mt-1 flex items-center space-x-2">
                 <Input
                   value={`Bearer ${newKeyResult.keyId}:${newKeyResult.secret}`}
@@ -250,7 +274,9 @@ export function ApiKeysComponent({ workspaceId }: Props) {
                 <Button
                   icon={<CopyOutlined />}
                   onClick={() => {
-                    ClipboardHelper.copyToClipboard(`Bearer ${newKeyResult.keyId}:${newKeyResult.secret}`);
+                    ClipboardHelper.copyToClipboard(
+                      `Bearer ${newKeyResult.keyId}:${newKeyResult.secret}`,
+                    );
                     message.success('Bearer header string copied');
                   }}
                 />
@@ -279,14 +305,14 @@ export function ApiKeysComponent({ workspaceId }: Props) {
               <Input placeholder="e.g. multi-tenant-saas-prod" />
             </Form.Item>
 
-            <Form.Item
-              name="role"
-              label="Role"
-              initialValue="WORKSPACE_ADMIN"
-            >
+            <Form.Item name="role" label="Role" initialValue="WORKSPACE_ADMIN">
               <Select>
-                <Select.Option value="WORKSPACE_ADMIN">Workspace Admin (Full access within workspace)</Select.Option>
-                <Select.Option value="WORKSPACE_MEMBER">Workspace Member (Trigger backups, view status)</Select.Option>
+                <Select.Option value="WORKSPACE_ADMIN">
+                  Workspace Admin (Full access within workspace)
+                </Select.Option>
+                <Select.Option value="WORKSPACE_MEMBER">
+                  Workspace Member (Trigger backups, view status)
+                </Select.Option>
                 <Select.Option value="WORKSPACE_VIEWER">Workspace Viewer (Read only)</Select.Option>
               </Select>
             </Form.Item>

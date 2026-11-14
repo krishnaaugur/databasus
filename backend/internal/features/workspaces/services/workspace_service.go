@@ -17,6 +17,7 @@ import (
 	workspaces_interfaces "databasus-backend/internal/features/workspaces/interfaces"
 	workspaces_models "databasus-backend/internal/features/workspaces/models"
 	workspaces_repositories "databasus-backend/internal/features/workspaces/repositories"
+	"databasus-backend/internal/storage"
 )
 
 type WorkspaceService struct {
@@ -334,4 +335,144 @@ func (s *WorkspaceService) GetWorkspaceByID(
 	workspaceID uuid.UUID,
 ) (*workspaces_models.Workspace, error) {
 	return s.workspaceRepository.GetWorkspaceByID(workspaceID)
+}
+
+func (s *WorkspaceService) IsUserDirectWorkspaceMember(
+	ctx context.Context,
+	workspaceID uuid.UUID,
+	userID uuid.UUID,
+) (bool, error) {
+	role, err := s.membershipRepository.GetUserWorkspaceRole(ctx, workspaceID, userID)
+	if err != nil {
+		return false, err
+	}
+
+	return role != nil, nil
+}
+
+func (s *WorkspaceService) GetWorkspaceTelemetry(
+	ctx context.Context,
+	workspaceID uuid.UUID,
+	user *users_models.User,
+) (*workspaces_dto.WorkspaceTelemetryDTO, error) {
+	canAccess, _, err := s.CanUserAccessWorkspace(ctx, workspaceID, user)
+	if err != nil {
+		return nil, err
+	}
+
+	if !canAccess {
+		return nil, workspaces_errors.ErrInsufficientPermissionsToViewWorkspace
+	}
+
+	workspace, err := s.workspaceRepository.GetWorkspaceByID(workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get workspace: %w", err)
+	}
+
+	return s.buildWorkspaceTelemetry(ctx, workspace)
+}
+
+func (s *WorkspaceService) GetAllWorkspacesTelemetry(
+	ctx context.Context,
+	user *users_models.User,
+) ([]*workspaces_dto.WorkspaceTelemetryDTO, error) {
+	if user.Role != users_enums.UserRoleAdmin {
+		return nil, workspaces_errors.ErrInsufficientPermissionsToViewWorkspace
+	}
+
+	workspaces, err := s.workspaceRepository.GetAllWorkspaces()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list workspaces: %w", err)
+	}
+
+	telemetries := make([]*workspaces_dto.WorkspaceTelemetryDTO, 0, len(workspaces))
+	for _, workspace := range workspaces {
+		telemetry, err := s.buildWorkspaceTelemetry(ctx, workspace)
+		if err != nil {
+			return nil, err
+		}
+
+		telemetries = append(telemetries, telemetry)
+	}
+
+	return telemetries, nil
+}
+
+func (s *WorkspaceService) buildWorkspaceTelemetry(
+	ctx context.Context,
+	workspace *workspaces_models.Workspace,
+) (*workspaces_dto.WorkspaceTelemetryDTO, error) {
+	db := storage.GetDb().WithContext(ctx)
+
+	type memberRow struct {
+		ID     uuid.UUID
+		UserID uuid.UUID
+		Email  string
+		Name   string
+		Role   string
+	}
+
+	var memberRows []memberRow
+	err := db.Table("workspace_memberships").
+		Select("workspace_memberships.id, workspace_memberships.user_id, users.email, users.name, workspace_memberships.role").
+		Joins("JOIN users ON users.id = workspace_memberships.user_id").
+		Where("workspace_memberships.workspace_id = ?", workspace.ID).
+		Scan(&memberRows).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch workspace members: %w", err)
+	}
+
+	userDTOs := make([]workspaces_dto.WorkspaceUserTelemetryDTO, len(memberRows))
+	for i, m := range memberRows {
+		userDTOs[i] = workspaces_dto.WorkspaceUserTelemetryDTO{
+			ID:    m.UserID,
+			Email: m.Email,
+			Name:  m.Name,
+			Role:  m.Role,
+		}
+	}
+
+	var databaseCount int64
+	if err := db.Table("databases").Where("workspace_id = ?", workspace.ID).Count(&databaseCount).Error; err != nil {
+		return nil, fmt.Errorf("failed to count databases: %w", err)
+	}
+
+	var logicalStats struct {
+		Count   int64
+		TotalMb float64
+	}
+	_ = db.Table("logical_backups").
+		Select("COUNT(*) as count, COALESCE(SUM(backup_size_mb), 0) as total_mb").
+		Where("database_id IN (SELECT id FROM databases WHERE workspace_id = ?)", workspace.ID).
+		Scan(&logicalStats).Error
+
+	var fullStats struct {
+		Count   int64
+		TotalMb float64
+	}
+	_ = db.Table("physical_full_backups").
+		Select("COUNT(*) as count, COALESCE(SUM(backup_size_mb), 0) as total_mb").
+		Where("database_id IN (SELECT id FROM databases WHERE workspace_id = ?)", workspace.ID).
+		Scan(&fullStats).Error
+
+	var incrStats struct {
+		Count   int64
+		TotalMb float64
+	}
+	_ = db.Table("physical_incremental_backups").
+		Select("COUNT(*) as count, COALESCE(SUM(backup_size_mb), 0) as total_mb").
+		Where("database_id IN (SELECT id FROM databases WHERE workspace_id = ?)", workspace.ID).
+		Scan(&incrStats).Error
+
+	totalBackups := int(logicalStats.Count + fullStats.Count + incrStats.Count)
+	totalMb := logicalStats.TotalMb + fullStats.TotalMb + incrStats.TotalMb
+
+	return &workspaces_dto.WorkspaceTelemetryDTO{
+		WorkspaceID:       workspace.ID,
+		WorkspaceName:     workspace.Name,
+		Users:             userDTOs,
+		DatabasesCount:    int(databaseCount),
+		BackupsCount:      totalBackups,
+		StorageConsumedMb: totalMb,
+	}, nil
 }

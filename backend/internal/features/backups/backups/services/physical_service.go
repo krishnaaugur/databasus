@@ -25,6 +25,7 @@ import (
 	backups_config_physical "databasus-backend/internal/features/backups/config/physical"
 	"databasus-backend/internal/features/databases"
 	encryption_secrets "databasus-backend/internal/features/encryption/secrets"
+	users_enums "databasus-backend/internal/features/users/enums"
 	users_models "databasus-backend/internal/features/users/models"
 	workspaces_services "databasus-backend/internal/features/workspaces/services"
 )
@@ -540,6 +541,13 @@ func (s *PhysicalBackupService) authorizeManage(
 
 	if !canManage {
 		return nil, errors.New("insufficient permissions to manage backups for this database")
+	}
+
+	if user.Role == users_enums.UserRoleAdmin {
+		isDirectMember, err := s.workspaceService.IsUserDirectWorkspaceMember(ctx, *database.WorkspaceID, user.ID)
+		if err != nil || !isDirectMember {
+			return nil, errors.New("super admin cannot trigger backups on tenant databases; only tenant users can perform backups")
+		}
 	}
 
 	return database, nil

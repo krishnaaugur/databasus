@@ -24,6 +24,8 @@ func (c *WorkspaceController) RegisterRoutes(router *gin.RouterGroup) {
 
 	workspaceRoutes.POST("", c.CreateWorkspace)
 	workspaceRoutes.GET("", c.GetWorkspaces)
+	workspaceRoutes.GET("/telemetry", c.GetAllWorkspacesTelemetry)
+	workspaceRoutes.GET("/:id/telemetry", c.GetWorkspaceTelemetry)
 	workspaceRoutes.GET("/:id", c.GetWorkspace)
 	workspaceRoutes.PUT("/:id", c.UpdateWorkspace)
 	workspaceRoutes.DELETE("/:id", c.DeleteWorkspace)
@@ -267,4 +269,75 @@ func (c *WorkspaceController) GetWorkspaceAuditLogs(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, response)
+}
+
+// GetWorkspaceTelemetry
+// @Summary Get telemetry for a specific workspace
+// @Description Get database count, backup count, storage consumed, and assigned users for a workspace
+// @Tags workspaces
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Workspace ID"
+// @Success 200 {object} workspaces_dto.WorkspaceTelemetryDTO
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /workspaces/{id}/telemetry [get]
+func (c *WorkspaceController) GetWorkspaceTelemetry(ctx *gin.Context) {
+	user, ok := users_middleware.GetUserFromContext(ctx)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	workspaceIDStr := ctx.Param("id")
+	workspaceID, err := uuid.Parse(workspaceIDStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid workspace ID"})
+		return
+	}
+
+	telemetry, err := c.workspaceService.GetWorkspaceTelemetry(ctx.Request.Context(), workspaceID, user)
+	if err != nil {
+		if errors.Is(err, workspaces_errors.ErrInsufficientPermissionsToViewWorkspace) {
+			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, telemetry)
+}
+
+// GetAllWorkspacesTelemetry
+// @Summary Get telemetry for all workspaces (Super Admin only)
+// @Description Get database count, backup count, storage consumed, and users for all workspaces
+// @Tags workspaces
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} workspaces_dto.WorkspaceTelemetryDTO
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /workspaces/telemetry [get]
+func (c *WorkspaceController) GetAllWorkspacesTelemetry(ctx *gin.Context) {
+	user, ok := users_middleware.GetUserFromContext(ctx)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	telemetries, err := c.workspaceService.GetAllWorkspacesTelemetry(ctx.Request.Context(), user)
+	if err != nil {
+		if errors.Is(err, workspaces_errors.ErrInsufficientPermissionsToViewWorkspace) {
+			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, telemetries)
 }

@@ -20,6 +20,7 @@ export interface CreateApiKeyResponse {
   name: string;
   keyId: string;
   secret: string;
+  encryptionKey?: string;
   workspaceId?: string;
   role: string;
   createdAt: string;
@@ -28,4 +29,3 @@ export interface CreateApiKeyResponse {
 export interface GetApiKeysResponse {
   apiKeys: ApiKey[];
 }
-

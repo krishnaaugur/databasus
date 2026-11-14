@@ -15,3 +15,4 @@ export type { ChangeMemberRoleRequest } from './model/ChangeMemberRoleRequest';
 export type { TransferOwnershipRequest } from './model/TransferOwnershipRequest';
 export type { WorkspaceMemberResponse } from './model/WorkspaceMemberResponse';
 export type { GetMembersResponse } from './model/GetMembersResponse';
+export type { WorkspaceTelemetry, WorkspaceUserTelemetry } from './api/workspaceApi';

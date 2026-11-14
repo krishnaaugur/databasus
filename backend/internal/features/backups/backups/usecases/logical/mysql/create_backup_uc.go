@@ -25,6 +25,7 @@ import (
 	mysqltypes "databasus-backend/internal/features/databases/databases/mysql"
 	encryption_secrets "databasus-backend/internal/features/encryption/secrets"
 	storage_files "databasus-backend/internal/features/storages/files"
+	users_middleware "databasus-backend/internal/features/users/middleware"
 	"databasus-backend/internal/util/encryption"
 	io_utils "databasus-backend/internal/util/io"
 	"databasus-backend/internal/util/namelist"
@@ -227,6 +228,7 @@ func (uc *CreateMysqlBackupUsecase) streamToStorage(
 	storageReader, storageWriter := io.Pipe()
 
 	finalWriter, encryptionWriter, backupMetadata, err := uc.setupBackupEncryption(
+		parentCtx,
 		backup.ID,
 		backupConfig,
 		storageWriter,
@@ -433,6 +435,7 @@ func (uc *CreateMysqlBackupUsecase) copyWithShutdownCheck(
 }
 
 func (uc *CreateMysqlBackupUsecase) setupBackupEncryption(
+	ctx context.Context,
 	backupID uuid.UUID,
 	backupConfig *backups_config_logical.LogicalBackupConfig,
 	storageWriter io.WriteCloser,
@@ -447,9 +450,15 @@ func (uc *CreateMysqlBackupUsecase) setupBackupEncryption(
 		return storageWriter, nil, metadata, nil
 	}
 
-	masterKey, err := uc.secretKeyService.GetSecretKey()
-	if err != nil {
-		return nil, nil, metadata, fmt.Errorf("failed to get master key: %w", err)
+	var masterKey string
+	if userKey := users_middleware.EncryptionKeyFromContext(ctx); userKey != "" {
+		masterKey = userKey
+	} else {
+		var err error
+		masterKey, err = uc.secretKeyService.GetSecretKey()
+		if err != nil {
+			return nil, nil, metadata, fmt.Errorf("failed to get master key: %w", err)
+		}
 	}
 
 	encSetup, err := backup_encryption.SetupEncryptionWriter(storageWriter, masterKey, backupID)

@@ -13,13 +13,14 @@ type CreateAPIKeyRequest struct {
 }
 
 type CreateAPIKeyResponse struct {
-	ID          uuid.UUID  `json:"id"`
-	Name        string     `json:"name"`
-	KeyID       string     `json:"keyId"`
-	Secret      string     `json:"secret"` // returned only upon creation!
-	WorkspaceID *uuid.UUID `json:"workspaceId,omitempty"`
-	Role        string     `json:"role"`
-	CreatedAt   time.Time  `json:"createdAt"`
+	ID            uuid.UUID  `json:"id"`
+	Name          string     `json:"name"`
+	KeyID         string     `json:"keyId"`
+	Secret        string     `json:"secret"` // returned only upon creation!
+	EncryptionKey string     `json:"encryptionKey"` // returned only upon creation!
+	WorkspaceID   *uuid.UUID `json:"workspaceId,omitempty"`
+	Role          string     `json:"role"`
+	CreatedAt     time.Time  `json:"createdAt"`
 }
 
 type APIKeyResponse struct {

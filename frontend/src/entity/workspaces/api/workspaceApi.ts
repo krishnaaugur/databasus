@@ -7,6 +7,22 @@ import type { ListWorkspacesResponse } from '../model/ListWorkspacesResponse';
 import type { Workspace } from '../model/Workspace';
 import type { WorkspaceResponse } from '../model/WorkspaceResponse';
 
+export interface WorkspaceUserTelemetry {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+}
+
+export interface WorkspaceTelemetry {
+  workspaceId: string;
+  workspaceName: string;
+  users: WorkspaceUserTelemetry[];
+  databasesCount: number;
+  backupsCount: number;
+  storageConsumedMb: number;
+}
+
 export const workspaceApi = {
   async createWorkspace(request: CreateWorkspaceRequest): Promise<WorkspaceResponse> {
     const requestOptions: RequestOptions = new RequestOptions();
@@ -72,5 +88,21 @@ export const workspaceApi = {
     }
 
     return apiHelper.fetchGetJson(url, requestOptions);
+  },
+
+  async getWorkspaceTelemetry(workspaceId: string): Promise<WorkspaceTelemetry> {
+    const requestOptions: RequestOptions = new RequestOptions();
+    return apiHelper.fetchGetJson(
+      `${getApplicationServer()}/api/v1/workspaces/${workspaceId}/telemetry`,
+      requestOptions,
+    );
+  },
+
+  async getAllWorkspacesTelemetry(): Promise<WorkspaceTelemetry[]> {
+    const requestOptions: RequestOptions = new RequestOptions();
+    return apiHelper.fetchGetJson(
+      `${getApplicationServer()}/api/v1/workspaces/telemetry`,
+      requestOptions,
+    );
   },
 };

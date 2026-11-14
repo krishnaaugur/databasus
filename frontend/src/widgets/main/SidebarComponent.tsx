@@ -19,7 +19,8 @@ export type MainTab =
   | 'profile'
   | 'databasus-settings'
   | 'users'
-  | 'settings';
+  | 'settings'
+  | 'api-docs';
 
 export interface SidebarTab {
   text: string;

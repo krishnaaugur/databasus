@@ -9,8 +9,9 @@ import (
 type APIKey struct {
 	ID          uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Name        string     `json:"name" gorm:"type:varchar(255);not null"`
-	KeyID       string     `json:"keyId" gorm:"type:varchar(64);uniqueIndex;not null"`
-	SecretHash  string     `json:"-" gorm:"type:varchar(255);not null"`
+	KeyID             string     `json:"keyId" gorm:"type:varchar(64);uniqueIndex;not null"`
+	SecretHash        string     `json:"-" gorm:"type:varchar(255);not null"`
+	EncryptionKeyHash string     `json:"-" gorm:"type:varchar(255)"`
 	WorkspaceID *uuid.UUID `json:"workspaceId,omitempty" gorm:"type:uuid;index"`
 	UserID      uuid.UUID  `json:"userId" gorm:"type:uuid;index;not null"`
 	Role        string     `json:"role" gorm:"type:varchar(50);not null;default:'WORKSPACE_ADMIN'"`

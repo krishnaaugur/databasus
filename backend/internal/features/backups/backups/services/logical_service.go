@@ -25,6 +25,7 @@ import (
 	"databasus-backend/internal/features/notifiers"
 	"databasus-backend/internal/features/storages"
 	task_cancellation "databasus-backend/internal/features/tasks/cancellation"
+	users_enums "databasus-backend/internal/features/users/enums"
 	users_models "databasus-backend/internal/features/users/models"
 	workspaces_services "databasus-backend/internal/features/workspaces/services"
 	util_encryption "databasus-backend/internal/util/encryption"
@@ -116,6 +117,13 @@ func (s *LogicalBackupService) MakeBackupWithAuth(
 	}
 	if !canAccess {
 		return errors.New("insufficient permissions to create backup for this database")
+	}
+
+	if user.Role == users_enums.UserRoleAdmin {
+		isDirectMember, err := s.workspaceService.IsUserDirectWorkspaceMember(ctx, *database.WorkspaceID, user.ID)
+		if err != nil || !isDirectMember {
+			return errors.New("super admin cannot trigger backups on tenant databases; only tenant users can perform backups")
+		}
 	}
 
 	s.backupSchedulerService.StartBackup(ctx, database, true)

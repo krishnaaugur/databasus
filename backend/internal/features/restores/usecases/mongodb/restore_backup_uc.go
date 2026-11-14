@@ -24,6 +24,7 @@ import (
 	encryption_secrets "databasus-backend/internal/features/encryption/secrets"
 	restores_core "databasus-backend/internal/features/restores/core"
 	"databasus-backend/internal/features/storages"
+	users_middleware "databasus-backend/internal/features/users/middleware"
 	util_encryption "databasus-backend/internal/util/encryption"
 	io_utils "databasus-backend/internal/util/io"
 	"databasus-backend/internal/util/tools"
@@ -200,7 +201,7 @@ func (uc *RestoreMongodbBackupUsecase) executeMongoRestore(
 	var inputReader io.Reader = storageReadFailureTracker
 
 	if backup.Encryption == backups_core_enums.BackupEncryptionEncrypted {
-		decryptReader, err := uc.setupDecryption(storageReadFailureTracker, backup)
+		decryptReader, err := uc.setupDecryption(ctx, storageReadFailureTracker, backup)
 		if err != nil {
 			return fmt.Errorf("failed to setup decryption: %w", err)
 		}
@@ -251,6 +252,7 @@ func (uc *RestoreMongodbBackupUsecase) executeMongoRestore(
 }
 
 func (uc *RestoreMongodbBackupUsecase) setupDecryption(
+	ctx context.Context,
 	reader io.Reader,
 	backup *backups_core_logical.LogicalBackup,
 ) (io.Reader, error) {
@@ -268,9 +270,15 @@ func (uc *RestoreMongodbBackupUsecase) setupDecryption(
 		return nil, fmt.Errorf("failed to decode encryption IV: %w", err)
 	}
 
-	masterKey, err := uc.secretKeyService.GetSecretKey()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get secret key: %w", err)
+	var masterKey string
+	if userKey := users_middleware.EncryptionKeyFromContext(ctx); userKey != "" {
+		masterKey = userKey
+	} else {
+		var err error
+		masterKey, err = uc.secretKeyService.GetSecretKey()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get secret key: %w", err)
+		}
 	}
 
 	decryptReader, err := encryption.NewDecryptionReader(

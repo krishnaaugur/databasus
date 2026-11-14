@@ -1,6 +1,7 @@
 package users_middleware
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -12,6 +13,34 @@ import (
 	users_services "databasus-backend/internal/features/users/services"
 	"databasus-backend/internal/util/logger"
 )
+
+type encryptionContextKeyType string
+
+const encryptionKeyContextKey encryptionContextKeyType = "encryptionKey"
+
+func ContextWithEncryptionKey(ctx context.Context, key string) context.Context {
+	return context.WithValue(ctx, encryptionKeyContextKey, key)
+}
+
+func EncryptionKeyFromContext(ctx context.Context) (string, bool) {
+	val := ctx.Value(encryptionKeyContextKey)
+	if val == nil {
+		return "", false
+	}
+
+	key, ok := val.(string)
+	return key, ok
+}
+
+func applyEncryptionKeyHeader(ctx *gin.Context) {
+	encKey := ctx.GetHeader("X-Encryption-Key")
+	if encKey != "" {
+		ctx.Set("encryptionKey", encKey)
+		ctx.Request = ctx.Request.WithContext(
+			ContextWithEncryptionKey(ctx.Request.Context(), encKey),
+		)
+	}
+}
 
 func AuthMiddleware(userService *users_services.UserService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
@@ -31,6 +60,7 @@ func AuthMiddleware(userService *users_services.UserService) gin.HandlerFunc {
 
 			ctx.Set("user", user)
 			ctx.Set("apiKey", apiKey)
+			applyEncryptionKeyHeader(ctx)
 			ctx.Request = ctx.Request.WithContext(
 				logger.ContextWithUserID(ctx.Request.Context(), user.ID.String()),
 			)
@@ -75,6 +105,7 @@ func AuthMiddleware(userService *users_services.UserService) gin.HandlerFunc {
 
 			ctx.Set("user", user)
 			ctx.Set("apiKey", apiKey)
+			applyEncryptionKeyHeader(ctx)
 			ctx.Request = ctx.Request.WithContext(
 				logger.ContextWithUserID(ctx.Request.Context(), user.ID.String()),
 			)
@@ -94,6 +125,7 @@ func AuthMiddleware(userService *users_services.UserService) gin.HandlerFunc {
 		}
 
 		ctx.Set("user", user)
+		applyEncryptionKeyHeader(ctx)
 
 		// Puts the principal on the context the controllers already pass into services, so every
 		// downstream record carries it without a scoped logger.
@@ -156,5 +188,16 @@ func GetAPIKeyFromContext(ctx *gin.Context) (*api_keys.APIKey, bool) {
 	}
 
 	key, ok := keyInterface.(*api_keys.APIKey)
+	return key, ok
+}
+
+// GetEncryptionKeyFromContext extracts the user-provided encryption key from gin context
+func GetEncryptionKeyFromContext(ctx *gin.Context) (string, bool) {
+	val, exists := ctx.Get("encryptionKey")
+	if !exists {
+		return "", false
+	}
+
+	key, ok := val.(string)
 	return key, ok
 }

@@ -45,6 +45,27 @@ func (s *APIKeyService) generateSecret() (string, error) {
 	return "dbs_sec_" + hex.EncodeToString(bytes), nil
 }
 
+func (s *APIKeyService) generateEncryptionKey() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return "dbs_enc_" + hex.EncodeToString(bytes), nil
+}
+
+func (s *APIKeyService) hashEncryptionKey(key string) string {
+	hash := sha256.Sum256([]byte(key))
+	return hex.EncodeToString(hash[:])
+}
+
+func (s *APIKeyService) ValidateEncryptionKey(rawKey, expectedHash string) bool {
+	if rawKey == "" || expectedHash == "" {
+		return false
+	}
+	hash := s.hashEncryptionKey(rawKey)
+	return subtle.ConstantTimeCompare([]byte(hash), []byte(expectedHash)) == 1
+}
+
 func (s *APIKeyService) CreateAPIKey(
 	ctx context.Context,
 	creator *users_models.User,
@@ -64,23 +85,29 @@ func (s *APIKeyService) CreateAPIKey(
 		return nil, fmt.Errorf("failed to generate secret: %w", err)
 	}
 
+	rawEncryptionKey, err := s.generateEncryptionKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate encryption key: %w", err)
+	}
+
 	role := req.Role
 	if role == "" {
 		role = string(users_enums.WorkspaceRoleAdmin)
 	}
 
 	apiKey := &APIKey{
-		ID:          uuid.New(),
-		Name:        req.Name,
-		KeyID:       keyID,
-		SecretHash:  s.hashSecret(rawSecret),
-		WorkspaceID: req.WorkspaceID,
-		UserID:      creator.ID,
-		Role:        role,
-		Permissions: "[]",
-		IsActive:    true,
-		CreatedAt:   time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
+		ID:                uuid.New(),
+		Name:              req.Name,
+		KeyID:             keyID,
+		SecretHash:        s.hashSecret(rawSecret),
+		EncryptionKeyHash: s.hashEncryptionKey(rawEncryptionKey),
+		WorkspaceID:       req.WorkspaceID,
+		UserID:            creator.ID,
+		Role:              role,
+		Permissions:       "[]",
+		IsActive:          true,
+		CreatedAt:         time.Now().UTC(),
+		UpdatedAt:         time.Now().UTC(),
 	}
 
 	if err := s.repository.Create(ctx, apiKey); err != nil {
@@ -90,13 +117,14 @@ func (s *APIKeyService) CreateAPIKey(
 	s.logger.InfoContext(ctx, "created new API key", "key_id", keyID, "workspace_id", req.WorkspaceID)
 
 	return &CreateAPIKeyResponse{
-		ID:          apiKey.ID,
-		Name:        apiKey.Name,
-		KeyID:       apiKey.KeyID,
-		Secret:      rawSecret,
-		WorkspaceID: apiKey.WorkspaceID,
-		Role:        apiKey.Role,
-		CreatedAt:   apiKey.CreatedAt,
+		ID:            apiKey.ID,
+		Name:          apiKey.Name,
+		KeyID:         apiKey.KeyID,
+		Secret:        rawSecret,
+		EncryptionKey: rawEncryptionKey,
+		WorkspaceID:   apiKey.WorkspaceID,
+		Role:          apiKey.Role,
+		CreatedAt:     apiKey.CreatedAt,
 	}, nil
 }
 

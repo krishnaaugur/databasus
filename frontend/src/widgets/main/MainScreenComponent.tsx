@@ -13,7 +13,12 @@ import {
   settingsApi,
   userApi,
 } from '../../entity/users';
-import { type WorkspaceResponse, workspaceApi } from '../../entity/workspaces';
+import {
+  type WorkspaceResponse,
+  type WorkspaceTelemetry,
+  workspaceApi,
+} from '../../entity/workspaces';
+import { ApiDocsComponent } from '../../features/api-docs';
 import { DatabasesComponent } from '../../features/databases/ui/DatabasesComponent';
 import { NotifiersComponent } from '../../features/notifiers/ui/NotifiersComponent';
 import { SettingsComponent } from '../../features/settings';
@@ -50,6 +55,7 @@ export const MainScreenComponent = () => {
   const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceResponse | undefined>(
     undefined,
   );
+  const [telemetry, setTelemetry] = useState<WorkspaceTelemetry | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] = useState(false);
@@ -100,6 +106,17 @@ export const MainScreenComponent = () => {
     }
   }, [selectedWorkspace]);
 
+  useEffect(() => {
+    if (user?.role === UserRole.ADMIN && selectedWorkspace?.id) {
+      workspaceApi
+        .getWorkspaceTelemetry(selectedWorkspace.id)
+        .then((data) => setTelemetry(data))
+        .catch(() => setTelemetry(null));
+    } else {
+      setTelemetry(null);
+    }
+  }, [user?.role, selectedWorkspace?.id]);
+
   const handleCreateWorkspace = () => {
     setShowCreateWorkspaceDialog(true);
   };
@@ -121,12 +138,13 @@ export const MainScreenComponent = () => {
   const isUsedMoreThan85Percent =
     diskUsage && diskUsage.usedSpaceBytes / diskUsage.totalSpaceBytes > 0.85;
 
-  const isCanManageDBs = selectedWorkspace?.userRole !== WorkspaceRole.VIEWER;
+  const isSuperAdmin = user?.role === UserRole.ADMIN;
+  const isCanManageDBs = !isSuperAdmin && selectedWorkspace?.userRole !== WorkspaceRole.VIEWER;
 
   const canCreateWorkspace = Boolean(
     user?.role === UserRole.ADMIN ||
-      user?.canCreateWorkspaces ||
-      globalSettings?.isMemberAllowedToCreateWorkspaces,
+    user?.canCreateWorkspaces ||
+    globalSettings?.isMemberAllowedToCreateWorkspaces,
   );
 
   const tabs: SidebarTab[] = [
@@ -139,6 +157,16 @@ export const MainScreenComponent = () => {
       isAdminOnly: false,
       marginTop: '0px',
       isVisible: true,
+    },
+    {
+      text: t('app.navigation.apiDocs', 'API & Integration'),
+      name: 'api-docs',
+      icon: '/icons/menu/api-gray.svg',
+      selectedIcon: '/icons/menu/api-white.svg',
+      onClick: () => setSelectedTab('api-docs'),
+      isAdminOnly: false,
+      marginTop: '0px',
+      isVisible: !!selectedWorkspace,
     },
     {
       text: t('app.navigation.storages'),
@@ -310,7 +338,8 @@ export const MainScreenComponent = () => {
           {(selectedTab === 'databases' ||
             selectedTab === 'storages' ||
             selectedTab === 'notifiers' ||
-            selectedTab === 'settings') && (
+            selectedTab === 'settings' ||
+            selectedTab === 'api-docs') && (
             <>
               {workspaces.length === 0 ? (
                 <div className="flex-1 md:pl-3">
@@ -337,10 +366,14 @@ export const MainScreenComponent = () => {
                         <ApartmentOutlined className="text-3xl text-blue-500" />
                       </div>
                       <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                        No Workspaces Assigned
+                        {/* eslint-disable-next-line i18next/no-literal-string -- empty state header */}
+                        {'No Workspaces Assigned'}
                       </h2>
                       <p className="mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">
-                        You do not currently have access to any workspaces. An administrator must assign you to a workspace or grant you permissions before you can view databases or run backup tasks.
+                        {/* eslint-disable-next-line i18next/no-literal-string -- empty state description */}
+                        {
+                          'You do not currently have access to any workspaces. An administrator must assign you to a workspace or grant you permissions before you can view databases or run backup tasks.'
+                        }
                       </p>
                     </div>
                   )}
@@ -348,6 +381,56 @@ export const MainScreenComponent = () => {
               ) : (
                 <>
                   <div className="flex-1 md:pl-1">
+                    {user?.role === UserRole.ADMIN && telemetry && (
+                      <div className="mb-3 rounded border border-blue-200 bg-blue-50/70 p-2.5 text-xs text-blue-900 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-semibold">
+                            {/* eslint-disable-next-line i18next/no-literal-string -- admin telemetry header */}
+                            {'🛡️ Super Admin Auditing Mode • Zero-Knowledge SaaS Policy'}
+                          </span>
+                          <div className="flex items-center gap-3">
+                            <span>
+                              {/* eslint-disable-next-line i18next/no-literal-string -- telemetry database label */}
+                              {'Databases: '}
+                              <strong>{telemetry.databasesCount}</strong>
+                            </span>
+                            <span>
+                              {/* eslint-disable-next-line i18next/no-literal-string -- telemetry backups label */}
+                              {'Backups: '}
+                              <strong>{telemetry.backupsCount}</strong>
+                            </span>
+                            <span>
+                              {/* eslint-disable-next-line i18next/no-literal-string -- telemetry storage label */}
+                              {'Storage: '}
+                              <strong>{telemetry.storageConsumedMb.toFixed(2)} MB</strong>
+                            </span>
+                            <span>
+                              {/* eslint-disable-next-line i18next/no-literal-string -- telemetry tenant users label */}
+                              {'Tenant Users: '}
+                              <strong>{telemetry.users.length}</strong>
+                            </span>
+                          </div>
+                        </div>
+                        <p className="mt-1 text-[11px] opacity-80">
+                          {/* eslint-disable-next-line i18next/no-literal-string -- zero-knowledge policy text */}
+                          {
+                            'Tenant database credentials and raw backups are encrypted with client-held keys. Backup & restore actions are restricted to tenant users.'
+                          }
+                        </p>
+                      </div>
+                    )}
+                    {selectedTab === 'api-docs' && selectedWorkspace && (
+                      <div
+                        className="flex-1 overflow-y-auto px-4 md:pl-3"
+                        style={{ height: contentHeight }}
+                      >
+                        <ApiDocsComponent
+                          workspaceId={selectedWorkspace.id}
+                          workspaceName={selectedWorkspace.name}
+                          key={`api-docs-${selectedWorkspace.id}`}
+                        />
+                      </div>
+                    )}
                     {selectedTab === 'notifiers' && selectedWorkspace && (
                       <NotifiersComponent
                         contentHeight={contentHeight}

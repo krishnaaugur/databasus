@@ -25,6 +25,7 @@ import (
 	postgresql_shared "databasus-backend/internal/features/databases/databases/postgresql/shared"
 	encryption_secrets "databasus-backend/internal/features/encryption/secrets"
 	storage_files "databasus-backend/internal/features/storages/files"
+	users_middleware "databasus-backend/internal/features/users/middleware"
 	"databasus-backend/internal/util/encryption"
 	"databasus-backend/internal/util/namelist"
 	"databasus-backend/internal/util/tools"
@@ -172,6 +173,7 @@ func (uc *CreatePostgresqlBackupUsecase) streamToStorage(
 	storageReader, storageWriter := io.Pipe()
 
 	finalWriter, encryptionWriter, backupMetadata, err := uc.setupBackupEncryption(
+		parentCtx,
 		backup.ID,
 		backupConfig,
 		storageWriter,
@@ -436,6 +438,7 @@ func (uc *CreatePostgresqlBackupUsecase) setupPgEnvironment(
 }
 
 func (uc *CreatePostgresqlBackupUsecase) setupBackupEncryption(
+	ctx context.Context,
 	backupID uuid.UUID,
 	backupConfig *backups_config_logical.LogicalBackupConfig,
 	storageWriter io.WriteCloser,
@@ -450,9 +453,15 @@ func (uc *CreatePostgresqlBackupUsecase) setupBackupEncryption(
 		return storageWriter, nil, metadata, nil
 	}
 
-	masterKey, err := uc.secretKeyService.GetSecretKey()
-	if err != nil {
-		return nil, nil, metadata, fmt.Errorf("failed to get master key: %w", err)
+	var masterKey string
+	if userKey := users_middleware.EncryptionKeyFromContext(ctx); userKey != "" {
+		masterKey = userKey
+	} else {
+		var err error
+		masterKey, err = uc.secretKeyService.GetSecretKey()
+		if err != nil {
+			return nil, nil, metadata, fmt.Errorf("failed to get master key: %w", err)
+		}
 	}
 
 	encSetup, err := backup_encryption.SetupEncryptionWriter(storageWriter, masterKey, backupID)
