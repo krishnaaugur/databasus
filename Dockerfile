@@ -148,6 +148,18 @@ RUN --mount=type=bind,source=assets/tools,target=/ctx/tools,readonly \
              /app/assets/tools/*/mongodb/bin/*
 
 RUN set -eux; \
+    if getent group 999 >/dev/null; then \
+      existing_group="$(getent group 999 | cut -d: -f1)"; \
+      if [ "$existing_group" != "postgres" ]; then \
+        groupmod -g 9999 "$existing_group"; \
+      fi; \
+    fi; \
+    if getent passwd 999 >/dev/null; then \
+      existing_user="$(getent passwd 999 | cut -d: -f1)"; \
+      if [ "$existing_user" != "postgres" ]; then \
+        usermod -u 9999 "$existing_user"; \
+      fi; \
+    fi; \
     groupmod -g 999 postgres; \
     usermod -u 999 postgres; \
     groupmod -n databasus postgres; \
