@@ -6,9 +6,17 @@ import type {
   CreateApiKeyRequest,
   CreateApiKeyResponse,
   GetApiKeysResponse,
+  RequestOtpResponse,
 } from '../model/ApiKey';
 
 export const apiKeysApi = {
+  async requestOtp(workspaceId: string): Promise<RequestOtpResponse> {
+    const requestOptions = new RequestOptions();
+    requestOptions.setBody(JSON.stringify({ workspaceId }));
+    const url = `${getApplicationServer()}/api/v1/api-keys/otp/request`;
+    return apiHelper.fetchPostJson<RequestOtpResponse>(url, requestOptions);
+  },
+
   async getApiKeys(workspaceId?: string): Promise<ApiKey[]> {
     const requestOptions = new RequestOptions();
     let url = `${getApplicationServer()}/api/v1/api-keys`;

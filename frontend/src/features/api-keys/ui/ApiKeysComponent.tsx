@@ -1,18 +1,27 @@
 /* eslint-disable i18next/no-literal-string -- API credentials and developer keys UI */
-import { CopyOutlined, DeleteOutlined, LoadingOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  CopyOutlined,
+  DeleteOutlined,
+  LoadingOutlined,
+  MailOutlined,
+  PlusOutlined,
+  SafetyCertificateOutlined,
+} from '@ant-design/icons';
 import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Spin, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 
 import { type ApiKey, type CreateApiKeyResponse, apiKeysApi } from '../../../entity/api-keys';
+import { type UserProfile, UserRole } from '../../../entity/users';
 import { ClipboardHelper } from '../../../shared/lib/ClipboardHelper';
 
 interface Props {
   workspaceId?: string;
+  user?: UserProfile;
 }
 
-export function ApiKeysComponent({ workspaceId }: Props) {
+export function ApiKeysComponent({ workspaceId, user }: Props) {
   const { message } = App.useApp();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,15 +29,33 @@ export function ApiKeysComponent({ workspaceId }: Props) {
   const [isCreating, setIsCreating] = useState(false);
   const [newKeyResult, setNewKeyResult] = useState<CreateApiKeyResponse | null>(null);
 
+  // OTP Verification state
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpRecipient, setOtpRecipient] = useState('');
+  const [countdown, setCountdown] = useState(0);
+
   const [form] = Form.useForm();
 
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
   const loadKeys = async () => {
+    if (user?.role === UserRole.ADMIN) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
       const data = await apiKeysApi.getApiKeys(workspaceId);
       setKeys(data);
     } catch {
-      // Ignore if endpoint not mounted yet
+      // Ignore if endpoint not mounted or permissions restricted
     } finally {
       setIsLoading(false);
     }
@@ -36,18 +63,45 @@ export function ApiKeysComponent({ workspaceId }: Props) {
 
   useEffect(() => {
     loadKeys();
-  }, [workspaceId]);
+  }, [workspaceId, user?.role]);
 
-  const handleCreate = async (values: { name: string; role: string }) => {
+  const handleSendOtp = async () => {
+    if (!workspaceId) {
+      message.error('A workspace must be selected to request an API key verification code');
+      return;
+    }
+    setIsSendingOtp(true);
+    try {
+      const res = await apiKeysApi.requestOtp(workspaceId);
+      setOtpSent(true);
+      setOtpRecipient(res.recipientMasked);
+      setCountdown(60);
+      message.success(`Verification code sent to ${res.recipientMasked}`);
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : 'Failed to send verification code');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleCreate = async (values: { name: string; role: string; otp: string }) => {
+    if (!values.otp || values.otp.trim().length !== 6) {
+      message.error('Please enter the 6-digit verification code sent to your email');
+      return;
+    }
     setIsCreating(true);
     try {
       const created = await apiKeysApi.createApiKey({
         name: values.name,
         workspaceId,
         role: values.role || 'WORKSPACE_ADMIN',
+        otp: values.otp.trim(),
       });
       setNewKeyResult(created);
       form.resetFields();
+      setOtpSent(false);
+      setOtpRecipient('');
+      setCountdown(0);
       await loadKeys();
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : 'Failed to create API key');
@@ -65,6 +119,33 @@ export function ApiKeysComponent({ workspaceId }: Props) {
       message.error(err instanceof Error ? err.message : 'Failed to revoke API key');
     }
   };
+
+  // If user is Super Admin, enforce strict auditing mode
+  if (user?.role === UserRole.ADMIN) {
+    return (
+      <div className="my-8 max-w-4xl">
+        <div className="mb-4">
+          <h2 className="text-xl font-bold dark:text-white">API Keys &amp; Programmatic Access</h2>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Programmatic API credentials and automated access tokens.
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
+          <div className="flex items-center space-x-2 font-semibold">
+            <SafetyCertificateOutlined className="text-base text-blue-600 dark:text-blue-400" />
+            <span>Tenant Privacy &amp; Zero-Knowledge Isolation Enforced</span>
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-blue-800 dark:text-blue-300">
+            Platform administrators cannot generate, view, or manage tenant workspace API keys or
+            database credentials. Only the assigned tenant Workspace Owner and authorized workspace
+            members can access and generate programmatic credentials after completing one-time
+            password (OTP) verification.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const columns: ColumnsType<ApiKey> = [
     {
@@ -140,7 +221,7 @@ export function ApiKeysComponent({ workspaceId }: Props) {
     <div className="my-8 max-w-4xl">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold dark:text-white">API Keys & Programmatic Access</h2>
+          <h2 className="text-xl font-bold dark:text-white">API Keys &amp; Programmatic Access</h2>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Manage programmatic API credentials for external applications (e.g. multi-tenant SaaS,
             CI/CD pipelines).
@@ -151,6 +232,9 @@ export function ApiKeysComponent({ workspaceId }: Props) {
           icon={<PlusOutlined />}
           onClick={() => {
             setNewKeyResult(null);
+            setOtpSent(false);
+            setOtpRecipient('');
+            form.resetFields();
             setIsModalOpen(true);
           }}
           className="border-blue-600 bg-blue-600 hover:border-blue-700 hover:bg-blue-700"
@@ -176,7 +260,7 @@ export function ApiKeysComponent({ workspaceId }: Props) {
 
       {/* Creation Modal */}
       <Modal
-        title={newKeyResult ? 'API Key Created' : 'Create New API Key'}
+        title={newKeyResult ? 'API Key Created' : 'Create New API Key (OTP Protected)'}
         open={isModalOpen}
         onCancel={() => {
           setIsModalOpen(false);
@@ -317,10 +401,59 @@ export function ApiKeysComponent({ workspaceId }: Props) {
               </Select>
             </Form.Item>
 
-            <div className="flex justify-end space-x-2 pt-2">
+            <div className="rounded-md border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center space-x-1.5 text-xs font-semibold text-gray-900 dark:text-white">
+                    <MailOutlined />
+                    <span>One-Time Password (OTP) Verification</span>
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                    {otpSent
+                      ? `Code sent to ${otpRecipient} (valid 10m)`
+                      : 'Required to authorize new API key creation.'}
+                  </div>
+                </div>
+                <Button
+                  size="small"
+                  onClick={handleSendOtp}
+                  loading={isSendingOtp}
+                  disabled={countdown > 0}
+                  className="text-xs"
+                >
+                  {countdown > 0 ? `Resend (${countdown}s)` : otpSent ? 'Resend Code' : 'Send Code'}
+                </Button>
+              </div>
+
+              {otpSent && (
+                <Form.Item
+                  name="otp"
+                  label="6-Digit Verification Code"
+                  className="mt-3 mb-0"
+                  rules={[
+                    { required: true, message: 'Please enter the 6-digit verification code' },
+                    { len: 6, message: 'Verification code must be exactly 6 digits' },
+                  ]}
+                >
+                  <Input
+                    placeholder="e.g. 123456"
+                    maxLength={6}
+                    className="text-center font-mono text-base tracking-widest"
+                  />
+                </Form.Item>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
               <Button onClick={() => setIsModalOpen(false)}>Cancel</Button>
-              <Button type="primary" htmlType="submit" loading={isCreating}>
-                Generate Key
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={isCreating}
+                disabled={!otpSent}
+                className="border-blue-600 bg-blue-600 hover:border-blue-700 hover:bg-blue-700"
+              >
+                Verify &amp; Generate Key
               </Button>
             </div>
           </Form>

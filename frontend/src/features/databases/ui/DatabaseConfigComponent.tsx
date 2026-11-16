@@ -501,6 +501,7 @@ export const DatabaseConfigComponent = ({
                 icon={<SafetyOutlined />}
                 onClick={() => setIsShowAccessModal(true)}
                 className="sm:mr-1"
+                /* eslint-disable-next-line i18next/no-literal-string -- tooltip */
                 title="Database Access Control"
               />
 

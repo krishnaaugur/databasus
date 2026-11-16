@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -28,6 +29,7 @@ import (
 	users_interfaces "databasus-backend/internal/features/users/interfaces"
 	users_models "databasus-backend/internal/features/users/models"
 	users_repositories "databasus-backend/internal/features/users/repositories"
+	"databasus-backend/internal/storage"
 	"databasus-backend/internal/util/ratelimiter"
 )
 
@@ -417,6 +419,50 @@ func (s *UserService) GetUserByEmail(ctx context.Context, email string) (*users_
 	return s.userRepository.GetUserByEmail(ctx, email)
 }
 
+func (s *UserService) GetOrCreateTenantUser(
+	ctx context.Context,
+	email string,
+	phone *string,
+) (*users_models.User, error) {
+	cleanEmail := strings.TrimSpace(strings.ToLower(email))
+	if cleanEmail == "" {
+		return nil, errors.New("email is required")
+	}
+
+	existingUser, err := s.userRepository.GetUserByEmail(ctx, cleanEmail)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup user: %w", err)
+	}
+
+	if existingUser != nil {
+		if phone != nil && *phone != "" && (existingUser.Phone == nil || *existingUser.Phone == "") {
+			existingUser.Phone = phone
+			_ = storage.GetDb().WithContext(ctx).Model(existingUser).Update("phone", phone).Error
+		}
+		return existingUser, nil
+	}
+
+	name := strings.Split(cleanEmail, "@")[0]
+	newUser := &users_models.User{
+		ID:                      uuid.New(),
+		Email:                   cleanEmail,
+		Name:                    name,
+		Phone:                   phone,
+		HashedPassword:          nil,
+		PasswordCreationTime:    time.Now().UTC(),
+		Role:                    users_enums.UserRoleMember,
+		Status:                  users_enums.UserStatusInvited,
+		CanCreateWorkspacesFlag: true,
+		CreatedAt:               time.Now().UTC(),
+	}
+
+	if err := s.userRepository.CreateUser(newUser); err != nil {
+		return nil, fmt.Errorf("failed to create tenant user: %w", err)
+	}
+
+	return newUser, nil
+}
+
 func (s *UserService) GetCurrentUserProfile(
 	ctx context.Context,
 	user *users_models.User,
@@ -425,6 +471,7 @@ func (s *UserService) GetCurrentUserProfile(
 		ID:                  user.ID,
 		Email:               user.Email,
 		Name:                user.Name,
+		Phone:               user.Phone,
 		Role:                user.Role,
 		IsActive:            user.IsActiveUser(),
 		CanCreateWorkspaces: user.CanCreateWorkspacesFlag,

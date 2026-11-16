@@ -24,6 +24,7 @@ type User struct {
 	GoogleOAuthID        *string                `json:"-"         gorm:"column:google_oauth_id"`
 	IsRootAdmin             bool                   `json:"-"         gorm:"column:is_root_admin"`
 	CanCreateWorkspacesFlag bool                   `json:"canCreateWorkspaces" gorm:"column:can_create_workspaces"`
+	Phone                   *string                `json:"phone,omitempty"    gorm:"column:phone"`
 	CreatedAt               time.Time              `json:"createdAt"`
 }
 

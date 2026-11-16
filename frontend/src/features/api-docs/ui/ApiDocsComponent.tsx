@@ -8,15 +8,17 @@ import {
 import { Alert, App, Button, Card, Tabs, Tag } from 'antd';
 import { useState } from 'react';
 
+import type { UserProfile } from '../../../entity/users';
 import { ClipboardHelper } from '../../../shared/lib/ClipboardHelper';
 import { ApiKeysComponent } from '../../api-keys/ui/ApiKeysComponent';
 
 interface Props {
   workspaceId?: string;
   workspaceName?: string;
+  user?: UserProfile;
 }
 
-export function ApiDocsComponent({ workspaceId, workspaceName }: Props) {
+export function ApiDocsComponent({ workspaceId, workspaceName, user }: Props) {
   const { message } = App.useApp();
   const [activeTab, setActiveTab] = useState('docs');
   const [codeLang, setCodeLang] = useState('curl');
@@ -399,7 +401,7 @@ def restore_backup(backup_id: str):
                   message="Keep your API Secret & One-Time Encryption Key safe"
                   description="When you create an API Key, an Encryption Key is generated alongside it. This key is displayed only once. Store both securely in your project's environment variables."
                 />
-                <ApiKeysComponent workspaceId={workspaceId} />
+                <ApiKeysComponent workspaceId={workspaceId} user={user} />
               </div>
             ),
           },

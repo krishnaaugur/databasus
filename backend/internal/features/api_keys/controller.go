@@ -15,6 +15,7 @@ type APIKeyController struct {
 
 func (c *APIKeyController) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/api-keys", c.CreateAPIKey)
+	router.POST("/api-keys/otp/request", c.RequestOTP)
 	router.GET("/api-keys", c.ListAPIKeys)
 	router.DELETE("/api-keys/:id", c.RevokeAPIKey)
 }
@@ -26,6 +27,28 @@ func getUserFromContext(ctx *gin.Context) (*users_models.User, bool) {
 	}
 	user, ok := userInterface.(*users_models.User)
 	return user, ok
+}
+
+func (c *APIKeyController) RequestOTP(ctx *gin.Context) {
+	user, ok := getUserFromContext(ctx)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var req RequestOTPRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	res, err := c.service.RequestOTP(ctx.Request.Context(), user, req.WorkspaceID)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, res)
 }
 
 func (c *APIKeyController) CreateAPIKey(ctx *gin.Context) {

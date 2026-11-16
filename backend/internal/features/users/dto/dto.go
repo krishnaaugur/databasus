@@ -105,6 +105,7 @@ type UserProfileResponseDTO struct {
 	ID                  uuid.UUID            `json:"id"`
 	Email               string               `json:"email"`
 	Name                string               `json:"name"`
+	Phone               *string              `json:"phone,omitempty"`
 	Role                users_enums.UserRole `json:"role"`
 	IsActive            bool                 `json:"isActive"`
 	CanCreateWorkspaces bool                 `json:"canCreateWorkspaces"`

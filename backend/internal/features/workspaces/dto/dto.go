@@ -17,7 +17,9 @@ const (
 
 // Workspace DTOs
 type CreateWorkspaceRequestDTO struct {
-	Name string `json:"name" binding:"required,min=1,max=255"`
+	Name       string  `json:"name" binding:"required,min=1,max=255"`
+	OwnerEmail *string `json:"ownerEmail,omitempty"`
+	OwnerPhone *string `json:"ownerPhone,omitempty"`
 }
 
 type WorkspaceResponseDTO struct {

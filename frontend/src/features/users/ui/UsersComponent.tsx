@@ -1,3 +1,4 @@
+/* eslint-disable i18next/no-literal-string -- Users management interface */
 import { ApartmentOutlined, LoadingOutlined } from '@ant-design/icons';
 import { App, Button, Drawer, Input, Select, Spin, Switch, Table, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -201,10 +202,7 @@ export function UsersComponent({ contentHeight }: Props) {
     }
   };
 
-  const handleWorkspacePermissionToggle = async (
-    userId: string,
-    currentPermission?: boolean,
-  ) => {
+  const handleWorkspacePermissionToggle = async (userId: string, currentPermission?: boolean) => {
     const newPermission = !currentPermission;
     setChangingPermissionUsers((prev) => new Set(prev).add(userId));
     try {
@@ -297,9 +295,7 @@ export function UsersComponent({ contentHeight }: Props) {
         const checked = isAdmin || Boolean(record.canCreateWorkspaces);
         return (
           <Tooltip
-            title={
-              isAdmin ? 'Admins always have permission to create workspaces' : undefined
-            }
+            title={isAdmin ? 'Admins always have permission to create workspaces' : undefined}
           >
             <Switch
               checked={checked}
@@ -415,16 +411,12 @@ export function UsersComponent({ contentHeight }: Props) {
         </div>
 
         <div className="mb-3 flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-700">
-          <span className="text-sm text-gray-600 dark:text-gray-400">
-            Can create workspaces?
-          </span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">Can create workspaces?</span>
           <Switch
             checked={user.role === UserRole.ADMIN || Boolean(user.canCreateWorkspaces)}
             disabled={user.role === UserRole.ADMIN || changingPermissionUsers.has(user.id)}
             loading={changingPermissionUsers.has(user.id)}
-            onChange={() =>
-              handleWorkspacePermissionToggle(user.id, user.canCreateWorkspaces)
-            }
+            onChange={() => handleWorkspacePermissionToggle(user.id, user.canCreateWorkspaces)}
             size="small"
             style={{
               backgroundColor:

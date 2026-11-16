@@ -1,3 +1,4 @@
+/* eslint-disable i18next/no-literal-string -- databases list UI */
 import { CodeOutlined } from '@ant-design/icons';
 import { Button, Modal, Spin } from 'antd';
 import { useEffect, useState } from 'react';

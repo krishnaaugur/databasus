@@ -1,3 +1,4 @@
+/* eslint-disable i18next/no-literal-string -- workspace creation dialog */
 import { LoadingOutlined } from '@ant-design/icons';
 import { App, Button, Input, Modal } from 'antd';
 import { Spin } from 'antd';
@@ -32,6 +33,8 @@ export const CreateWorkspaceDialogComponent = ({
   const [workspaceName, setWorkspaceName] = useState(
     workspacesCount === 0 ? t('workspaces.create.defaultName') : '',
   );
+  const [ownerEmail, setOwnerEmail] = useState('');
+  const [ownerPhone, setOwnerPhone] = useState('');
 
   const isAllowedToCreateWorkspaces =
     globalSettings.isMemberAllowedToCreateWorkspaces ||
@@ -44,11 +47,19 @@ export const CreateWorkspaceDialogComponent = ({
       return;
     }
 
+    if (user.role === UserRole.ADMIN && !ownerEmail.trim()) {
+      message.error('Please enter the workspace owner email address');
+      return;
+    }
+
     setIsCreating(true);
 
     try {
       const newWorkspace = await workspaceApi.createWorkspace({
         name: workspaceName.trim(),
+        ownerEmail: user.role === UserRole.ADMIN ? ownerEmail.trim() : undefined,
+        ownerPhone:
+          user.role === UserRole.ADMIN && ownerPhone.trim() ? ownerPhone.trim() : undefined,
       });
 
       message.success(t('workspaces.create.created'));
@@ -92,7 +103,11 @@ export const CreateWorkspaceDialogComponent = ({
           key="create"
           type="primary"
           onClick={handleCreateWorkspace}
-          disabled={isCreating || !workspaceName.trim()}
+          disabled={
+            isCreating ||
+            !workspaceName.trim() ||
+            (user.role === UserRole.ADMIN && !ownerEmail.trim())
+          }
           className="border-blue-600 bg-blue-600 hover:border-blue-700 hover:bg-blue-700"
         >
           {isCreating ? (
@@ -104,6 +119,17 @@ export const CreateWorkspaceDialogComponent = ({
       ]}
     >
       <div className="mb-4">
+        {user.role === UserRole.ADMIN && (
+          <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+            <div className="font-semibold">Tenant Privacy &amp; Zero-Knowledge Security</div>
+            <p className="mt-1">
+              Assign the workspace owner below. The owner will have exclusive access to generate API
+              keys and manage database credentials. Platform super admins cannot generate or view
+              workspace API keys or database credentials.
+            </p>
+          </div>
+        )}
+
         <div className="dark:text-gray-300">
           <Trans i18nKey="workspaces.create.description" components={{ lineBreak: <br /> }} />
         </div>
@@ -119,6 +145,32 @@ export const CreateWorkspaceDialogComponent = ({
           onPressEnter={handleCreateWorkspace}
           autoFocus
         />
+
+        {user.role === UserRole.ADMIN && (
+          <>
+            <label className="mt-4 mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Workspace Owner Email <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="email"
+              value={ownerEmail}
+              onChange={(e) => setOwnerEmail(e.target.value)}
+              placeholder="e.g. tenant-admin@client.com"
+              disabled={isCreating}
+            />
+
+            <label className="mt-4 mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Workspace Owner Mobile Number{' '}
+              <span className="text-xs font-normal text-gray-400">(Optional, for SMS OTP)</span>
+            </label>
+            <Input
+              value={ownerPhone}
+              onChange={(e) => setOwnerPhone(e.target.value)}
+              placeholder="e.g. +1 555-0199"
+              disabled={isCreating}
+            />
+          </>
+        )}
       </div>
     </Modal>
   );

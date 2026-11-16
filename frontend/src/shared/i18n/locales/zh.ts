@@ -669,8 +669,7 @@ export const zh: typeof en = {
       restoreToOriginalWarningTitle: '覆盖现有数据库中的数据？',
       restoreToOriginalWarningBody:
         '将使用已保存的凭据直接连接到 <bold>{{name}}</bold>，并使用此备份覆盖所有现有数据。',
-      restoreToOriginalWarningHint:
-        '自此备份以来的所有更改都将被覆盖。无需手动输入凭据。',
+      restoreToOriginalWarningHint: '自此备份以来的所有更改都将被覆盖。无需手动输入凭据。',
       restoreToOriginalConfirmButton: '确认覆盖并恢复',
       description:
         '填写要把备份恢复到的数据库信息。<underline>恢复前需要先创建一个空数据库</underline>。恢复过程中，其中现有的数据都会被清除。',

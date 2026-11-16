@@ -6,10 +6,21 @@ import (
 	"github.com/google/uuid"
 )
 
+type RequestOTPRequest struct {
+	WorkspaceID uuid.UUID `json:"workspaceId" binding:"required"`
+}
+
+type RequestOTPResponse struct {
+	Status           string `json:"status"`
+	RecipientMasked  string `json:"recipientMasked"`
+	ExpiresInSeconds int    `json:"expiresInSeconds"`
+}
+
 type CreateAPIKeyRequest struct {
 	Name        string     `json:"name" binding:"required"`
-	WorkspaceID *uuid.UUID `json:"workspaceId"`
+	WorkspaceID *uuid.UUID `json:"workspaceId" binding:"required"`
 	Role        string     `json:"role"`
+	OTP         string     `json:"otp" binding:"required"`
 }
 
 type CreateAPIKeyResponse struct {
@@ -33,4 +44,3 @@ type APIKeyResponse struct {
 	LastUsedAt  *time.Time `json:"lastUsedAt,omitempty"`
 	CreatedAt   time.Time  `json:"createdAt"`
 }
-

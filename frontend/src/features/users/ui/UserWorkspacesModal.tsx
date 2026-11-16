@@ -5,23 +5,11 @@ import {
   LoadingOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
-import {
-  App,
-  Button,
-  Modal,
-  Popconfirm,
-  Select,
-  Spin,
-  Table,
-  Tag,
-} from 'antd';
+import { App, Button, Modal, Popconfirm, Select, Spin, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 
-import {
-  type UserProfile,
-  WorkspaceRole,
-} from '../../../entity/users';
+import { type UserProfile, WorkspaceRole } from '../../../entity/users';
 import {
   type WorkspaceResponse,
   workspaceApi,
@@ -40,7 +28,6 @@ interface WorkspaceAssignmentRow {
   isMember: boolean;
   role?: WorkspaceRole;
 }
-
 
 export function UserWorkspacesModal({ user, open, onClose }: Props) {
   const { message } = App.useApp();
@@ -153,11 +140,7 @@ export function UserWorkspacesModal({ user, open, onClose }: Props) {
       title: 'Status',
       key: 'status',
       render: (_, r) =>
-        r.isMember ? (
-          <Tag color="green">Member</Tag>
-        ) : (
-          <Tag color="default">Not a Member</Tag>
-        ),
+        r.isMember ? <Tag color="green">Member</Tag> : <Tag color="default">Not a Member</Tag>,
     },
     {
       title: 'Workspace Role',
@@ -186,7 +169,7 @@ export function UserWorkspacesModal({ user, open, onClose }: Props) {
       render: (_, r) => {
         if (r.isMember) {
           if (r.role === WorkspaceRole.OWNER) {
-            return <span className="text-xs text-purple-600 font-medium">Owner</span>;
+            return <span className="text-xs font-medium text-purple-600">Owner</span>;
           }
           return (
             <Popconfirm
@@ -245,8 +228,8 @@ export function UserWorkspacesModal({ user, open, onClose }: Props) {
     >
       <div className="space-y-4 pt-2">
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Assign which workspaces <strong>{user?.email}</strong> can access and choose their role
-          in each workspace.
+          Assign which workspaces <strong>{user?.email}</strong> can access and choose their role in
+          each workspace.
         </p>
 
         {isLoading ? (
@@ -267,4 +250,3 @@ export function UserWorkspacesModal({ user, open, onClose }: Props) {
     </Modal>
   );
 }
-

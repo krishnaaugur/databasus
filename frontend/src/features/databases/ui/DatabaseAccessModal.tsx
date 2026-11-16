@@ -1,3 +1,4 @@
+/* eslint-disable i18next/no-literal-string -- Database access control modal */
 import {
   DeleteOutlined,
   KeyOutlined,
@@ -6,18 +7,7 @@ import {
   SafetyOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import {
-  App,
-  Button,
-  Checkbox,
-  Form,
-  Modal,
-  Popconfirm,
-  Select,
-  Spin,
-  Table,
-  Tag,
-} from 'antd';
+import { App, Button, Checkbox, Form, Modal, Popconfirm, Select, Spin, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 
@@ -147,25 +137,29 @@ export function DatabaseAccessModal({
       title: 'View',
       dataIndex: 'canView',
       key: 'canView',
-      render: (v: boolean) => (v ? <Tag color="green">Allowed</Tag> : <Tag color="red">Denied</Tag>),
+      render: (v: boolean) =>
+        v ? <Tag color="green">Allowed</Tag> : <Tag color="red">Denied</Tag>,
     },
     {
       title: 'Backup',
       dataIndex: 'canBackup',
       key: 'canBackup',
-      render: (v: boolean) => (v ? <Tag color="green">Allowed</Tag> : <Tag color="red">Denied</Tag>),
+      render: (v: boolean) =>
+        v ? <Tag color="green">Allowed</Tag> : <Tag color="red">Denied</Tag>,
     },
     {
       title: 'Restore',
       dataIndex: 'canRestore',
       key: 'canRestore',
-      render: (v: boolean) => (v ? <Tag color="green">Allowed</Tag> : <Tag color="red">Denied</Tag>),
+      render: (v: boolean) =>
+        v ? <Tag color="green">Allowed</Tag> : <Tag color="red">Denied</Tag>,
     },
     {
       title: 'Manage',
       dataIndex: 'canManage',
       key: 'canManage',
-      render: (v: boolean) => (v ? <Tag color="green">Allowed</Tag> : <Tag color="red">Denied</Tag>),
+      render: (v: boolean) =>
+        v ? <Tag color="green">Allowed</Tag> : <Tag color="red">Denied</Tag>,
     },
     {
       title: 'Action',
@@ -259,7 +253,9 @@ export function DatabaseAccessModal({
               label={targetType === 'USER' ? 'Select Member' : 'Select API Key'}
               rules={[{ required: true, message: 'Please select a principal' }]}
             >
-              <Select placeholder={targetType === 'USER' ? 'Select member...' : 'Select API key...'}>
+              <Select
+                placeholder={targetType === 'USER' ? 'Select member...' : 'Select API key...'}
+              >
                 {targetType === 'USER'
                   ? members.map((m) => (
                       <Select.Option key={m.userId} value={m.userId}>
@@ -304,4 +300,3 @@ export function DatabaseAccessModal({
     </Modal>
   );
 }
-

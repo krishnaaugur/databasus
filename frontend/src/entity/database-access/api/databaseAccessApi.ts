@@ -7,7 +7,10 @@ export const databaseAccessApi = {
   async listPermissions(databaseId: string, workspaceId: string): Promise<DatabaseAccessControl[]> {
     const requestOptions = new RequestOptions();
     const url = `${getApplicationServer()}/api/v1/databases/${databaseId}/permissions?workspace_id=${encodeURIComponent(workspaceId)}`;
-    const res = await apiHelper.fetchGetJson<{ permissions: DatabaseAccessControl[] }>(url, requestOptions);
+    const res = await apiHelper.fetchGetJson<{ permissions: DatabaseAccessControl[] }>(
+      url,
+      requestOptions,
+    );
     return res.permissions || [];
   },
 

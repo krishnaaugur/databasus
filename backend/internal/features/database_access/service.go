@@ -31,8 +31,11 @@ func (s *DatabaseAccessService) CanAccess(
 	databaseID uuid.UUID,
 	action DatabaseAction,
 ) (bool, error) {
-	// 1. Super Admin has unrestricted access everywhere
+	// 1. Super Admin has view-only auditing access, but cannot manage, backup, restore, or access DB creds
 	if user != nil && user.Role == users_enums.UserRoleAdmin {
+		if action == ActionBackup || action == ActionRestore || action == ActionManage {
+			return false, nil
+		}
 		return true, nil
 	}
 

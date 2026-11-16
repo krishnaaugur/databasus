@@ -1,16 +1,20 @@
 package api_keys
 
 import (
+	"databasus-backend/internal/features/email"
 	users_repositories "databasus-backend/internal/features/users/repositories"
+	workspaces_repositories "databasus-backend/internal/features/workspaces/repositories"
 	"databasus-backend/internal/util/logger"
 )
 
 var (
 	apiKeyRepository = &APIKeyRepository{}
 	apiKeyService    = &APIKeyService{
-		repository:     apiKeyRepository,
-		userRepository: &users_repositories.UserRepository{},
-		logger:         logger.GetLogger(),
+		repository:           apiKeyRepository,
+		userRepository:       &users_repositories.UserRepository{},
+		membershipRepository: &workspaces_repositories.MembershipRepository{},
+		emailSender:          email.GetEmailSMTPSender(),
+		logger:               logger.GetLogger(),
 	}
 	apiKeyController = &APIKeyController{
 		service: apiKeyService,
@@ -28,4 +32,3 @@ func GetAPIKeyRepository() *APIKeyRepository {
 func GetAPIKeyController() *APIKeyController {
 	return apiKeyController
 }
-

@@ -9,19 +9,25 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/big"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
 	users_enums "databasus-backend/internal/features/users/enums"
+	users_interfaces "databasus-backend/internal/features/users/interfaces"
 	users_models "databasus-backend/internal/features/users/models"
 	users_repositories "databasus-backend/internal/features/users/repositories"
+	workspaces_repositories "databasus-backend/internal/features/workspaces/repositories"
 )
 
 type APIKeyService struct {
-	repository     *APIKeyRepository
-	userRepository *users_repositories.UserRepository
-	logger         *slog.Logger
+	repository           *APIKeyRepository
+	userRepository       *users_repositories.UserRepository
+	membershipRepository *workspaces_repositories.MembershipRepository
+	emailSender          users_interfaces.EmailSender
+	logger               *slog.Logger
 }
 
 func (s *APIKeyService) hashSecret(secret string) string {
@@ -66,13 +72,126 @@ func (s *APIKeyService) ValidateEncryptionKey(rawKey, expectedHash string) bool 
 	return subtle.ConstantTimeCompare([]byte(hash), []byte(expectedHash)) == 1
 }
 
+func maskRecipient(recipient string) string {
+	parts := strings.Split(recipient, "@")
+	if len(parts) == 2 {
+		name := parts[0]
+		domain := parts[1]
+		if len(name) <= 2 {
+			return name[:1] + "***@" + domain
+		}
+		return name[:2] + "***@" + domain
+	}
+	if len(recipient) > 4 {
+		return recipient[:2] + "***" + recipient[len(recipient)-2:]
+	}
+	return "***"
+}
+
+func (s *APIKeyService) RequestOTP(
+	ctx context.Context,
+	user *users_models.User,
+	workspaceID uuid.UUID,
+) (*RequestOTPResponse, error) {
+	if user.Role == users_enums.UserRoleAdmin {
+		return nil, errors.New("super administrators cannot request OTP or generate workspace API keys")
+	}
+
+	role, err := s.membershipRepository.GetUserWorkspaceRole(ctx, workspaceID, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	if role == nil {
+		return nil, errors.New("you are not a member of this workspace")
+	}
+
+	if *role != users_enums.WorkspaceRoleOwner && *role != users_enums.WorkspaceRoleAdmin {
+		return nil, errors.New("only workspace owners or admins can request API key verification codes")
+	}
+
+	n, err := rand.Int(rand.Reader, big.NewInt(900000))
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate verification code: %w", err)
+	}
+	code := fmt.Sprintf("%06d", n.Int64()+100000)
+
+	recipient := user.Email
+	if user.Phone != nil && *user.Phone != "" {
+		recipient = fmt.Sprintf("%s (%s)", user.Email, *user.Phone)
+	}
+
+	otp := &APIKeyOTP{
+		UserID:      user.ID,
+		WorkspaceID: workspaceID,
+		Code:        code,
+		Recipient:   recipient,
+		ExpiresAt:   time.Now().UTC().Add(10 * time.Minute),
+		CreatedAt:   time.Now().UTC(),
+	}
+
+	if err := s.repository.SaveOTP(ctx, otp); err != nil {
+		return nil, fmt.Errorf("failed to store verification code: %w", err)
+	}
+
+	subject := fmt.Sprintf("Your Databasus API Key Verification Code: %s", code)
+	body := fmt.Sprintf(
+		"<p>Hello %s,</p><p>Your verification code to generate an API key is: <strong>%s</strong></p><p>This code expires in 10 minutes. If you did not request this code, please ignore this email.</p>",
+		user.Name,
+		code,
+	)
+
+	if s.emailSender != nil {
+		_ = s.emailSender.SendEmail(ctx, user.Email, subject, body)
+	}
+
+	s.logger.InfoContext(ctx, "generated API key verification OTP",
+		"user_id", user.ID,
+		"workspace_id", workspaceID,
+		"code", code,
+		"recipient", user.Email,
+	)
+
+	return &RequestOTPResponse{
+		Status:           "sent",
+		RecipientMasked:  maskRecipient(user.Email),
+		ExpiresInSeconds: 600,
+	}, nil
+}
+
 func (s *APIKeyService) CreateAPIKey(
 	ctx context.Context,
 	creator *users_models.User,
 	req CreateAPIKeyRequest,
 ) (*CreateAPIKeyResponse, error) {
-	if creator.Role != users_enums.UserRoleAdmin && req.WorkspaceID == nil {
-		return nil, errors.New("only Super Admin can create platform-wide API keys")
+	if creator.Role == users_enums.UserRoleAdmin {
+		return nil, errors.New("super administrators cannot generate workspace API keys")
+	}
+
+	if req.WorkspaceID == nil {
+		return nil, errors.New("workspace ID is required")
+	}
+
+	role, err := s.membershipRepository.GetUserWorkspaceRole(ctx, *req.WorkspaceID, creator.ID)
+	if err != nil {
+		return nil, err
+	}
+	if role == nil {
+		return nil, errors.New("insufficient permissions: you are not a member of this workspace")
+	}
+	if *role != users_enums.WorkspaceRoleOwner && *role != users_enums.WorkspaceRoleAdmin {
+		return nil, errors.New("only workspace owners or admins can generate API keys")
+	}
+
+	if req.OTP == "" {
+		return nil, errors.New("verification OTP is required to generate an API key")
+	}
+
+	valid, err := s.repository.VerifyAndConsumeOTP(ctx, creator.ID, *req.WorkspaceID, req.OTP)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify OTP: %w", err)
+	}
+	if !valid {
+		return nil, errors.New("invalid or expired verification code")
 	}
 
 	keyID, err := s.generateKeyID()
@@ -90,9 +209,9 @@ func (s *APIKeyService) CreateAPIKey(
 		return nil, fmt.Errorf("failed to generate encryption key: %w", err)
 	}
 
-	role := req.Role
-	if role == "" {
-		role = string(users_enums.WorkspaceRoleAdmin)
+	keyRole := req.Role
+	if keyRole == "" {
+		keyRole = string(users_enums.WorkspaceRoleAdmin)
 	}
 
 	apiKey := &APIKey{
@@ -103,7 +222,7 @@ func (s *APIKeyService) CreateAPIKey(
 		EncryptionKeyHash: s.hashEncryptionKey(rawEncryptionKey),
 		WorkspaceID:       req.WorkspaceID,
 		UserID:            creator.ID,
-		Role:              role,
+		Role:              keyRole,
 		Permissions:       "[]",
 		IsActive:          true,
 		CreatedAt:         time.Now().UTC(),
@@ -157,7 +276,6 @@ func (s *APIKeyService) ValidateAPIKey(
 		return nil, nil, errors.New("user associated with API key not found")
 	}
 
-	// Update last used asynchronously so it does not block request path
 	go func(id uuid.UUID) {
 		_ = s.repository.UpdateLastUsed(context.Background(), id)
 	}(apiKey.ID)
@@ -170,17 +288,23 @@ func (s *APIKeyService) ListAPIKeys(
 	user *users_models.User,
 	workspaceID *uuid.UUID,
 ) ([]*APIKeyResponse, error) {
-	var keys []*APIKey
-	var err error
-
-	if workspaceID != nil {
-		keys, err = s.repository.ListByWorkspace(ctx, *workspaceID)
-	} else if user.Role == users_enums.UserRoleAdmin {
-		keys, err = s.repository.ListAll(ctx)
-	} else {
-		return nil, errors.New("workspace ID required for non-admin users")
+	if user.Role == users_enums.UserRoleAdmin {
+		return []*APIKeyResponse{}, nil
 	}
 
+	if workspaceID == nil {
+		return nil, errors.New("workspace ID is required")
+	}
+
+	role, err := s.membershipRepository.GetUserWorkspaceRole(ctx, *workspaceID, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	if role == nil {
+		return []*APIKeyResponse{}, nil
+	}
+
+	keys, err := s.repository.ListByWorkspace(ctx, *workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -206,6 +330,10 @@ func (s *APIKeyService) RevokeAPIKey(
 	user *users_models.User,
 	id uuid.UUID,
 ) error {
+	if user.Role == users_enums.UserRoleAdmin {
+		return errors.New("super administrators cannot revoke workspace API keys")
+	}
+
 	apiKey, err := s.repository.FindByID(ctx, id)
 	if err != nil {
 		return err
@@ -214,10 +342,17 @@ func (s *APIKeyService) RevokeAPIKey(
 		return errors.New("API key not found")
 	}
 
-	if user.Role != users_enums.UserRoleAdmin && apiKey.UserID != user.ID {
+	if apiKey.WorkspaceID != nil {
+		role, err := s.membershipRepository.GetUserWorkspaceRole(ctx, *apiKey.WorkspaceID, user.ID)
+		if err != nil || role == nil {
+			return errors.New("insufficient permissions to revoke this API key")
+		}
+		if *role != users_enums.WorkspaceRoleOwner && *role != users_enums.WorkspaceRoleAdmin && apiKey.UserID != user.ID {
+			return errors.New("insufficient permissions to revoke this API key")
+		}
+	} else if apiKey.UserID != user.ID {
 		return errors.New("insufficient permissions to revoke this API key")
 	}
 
 	return s.repository.Delete(ctx, id)
 }
-

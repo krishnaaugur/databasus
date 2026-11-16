@@ -75,3 +75,30 @@ func (r *APIKeyRepository) UpdateLastUsed(ctx context.Context, id uuid.UUID) err
 		Update("last_used_at", &now).Error
 }
 
+func (r *APIKeyRepository) SaveOTP(ctx context.Context, otp *APIKeyOTP) error {
+	if otp.ID == uuid.Nil {
+		otp.ID = uuid.New()
+	}
+	_ = storage.GetDb().WithContext(ctx).
+		Where("user_id = ? AND workspace_id = ?", otp.UserID, otp.WorkspaceID).
+		Delete(&APIKeyOTP{}).Error
+
+	return storage.GetDb().WithContext(ctx).Create(otp).Error
+}
+
+func (r *APIKeyRepository) VerifyAndConsumeOTP(ctx context.Context, userID, workspaceID uuid.UUID, code string) (bool, error) {
+	var otp APIKeyOTP
+	err := storage.GetDb().WithContext(ctx).
+		Where("user_id = ? AND workspace_id = ? AND code = ? AND expires_at > ?", userID, workspaceID, code, time.Now().UTC()).
+		First(&otp).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	_ = storage.GetDb().WithContext(ctx).Where("id = ?", otp.ID).Delete(&APIKeyOTP{}).Error
+	return true, nil
+}
+

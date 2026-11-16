@@ -1,3 +1,4 @@
+/* eslint-disable i18next/no-literal-string -- Main screen UI */
 import { ApartmentOutlined, LoadingOutlined, MenuOutlined } from '@ant-design/icons';
 import { App, Button, Spin, Tooltip } from 'antd';
 import { useEffect, useState } from 'react';
@@ -406,6 +407,7 @@ export const MainScreenComponent = () => {
                         <ApiDocsComponent
                           workspaceId={selectedWorkspace.id}
                           workspaceName={selectedWorkspace.name}
+                          user={user}
                           key={`api-docs-${selectedWorkspace.id}`}
                         />
                       </div>

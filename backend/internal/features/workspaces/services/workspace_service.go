@@ -2,6 +2,7 @@ package workspaces_services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -59,8 +60,28 @@ func (s *WorkspaceService) CreateWorkspace(
 		return nil, fmt.Errorf("failed to create workspace: %w", err)
 	}
 
+	var ownerUser *users_models.User
+	var userRole *users_enums.WorkspaceRole
+
+	if creator.Role == users_enums.UserRoleAdmin {
+		if request.OwnerEmail == nil || *request.OwnerEmail == "" {
+			return nil, errors.New("workspace owner email is required")
+		}
+
+		tenantUser, err := s.userService.GetOrCreateTenantUser(ctx, *request.OwnerEmail, request.OwnerPhone)
+		if err != nil {
+			return nil, fmt.Errorf("failed to assign workspace owner: %w", err)
+		}
+		ownerUser = tenantUser
+		userRole = nil
+	} else {
+		ownerUser = creator
+		ownerRole := users_enums.WorkspaceRoleOwner
+		userRole = &ownerRole
+	}
+
 	membership := &workspaces_models.WorkspaceMembership{
-		UserID:      creator.ID,
+		UserID:      ownerUser.ID,
 		WorkspaceID: workspace.ID,
 		Role:        users_enums.WorkspaceRoleOwner,
 		CreatedAt:   time.Now().UTC(),
@@ -71,17 +92,16 @@ func (s *WorkspaceService) CreateWorkspace(
 	}
 
 	s.auditLogService.WriteAuditLog(ctx, audit_logs_models.AuditEntry{
-		Message:     fmt.Sprintf("Workspace created: %s", workspace.Name),
+		Message:     fmt.Sprintf("Workspace created: %s (owner: %s)", workspace.Name, ownerUser.Email),
 		UserID:      &creator.ID,
 		WorkspaceID: &workspace.ID,
 	})
 
-	ownerRole := users_enums.WorkspaceRoleOwner
 	return &workspaces_dto.WorkspaceResponseDTO{
 		ID:        workspace.ID,
 		Name:      workspace.Name,
 		CreatedAt: workspace.CreatedAt,
-		UserRole:  &ownerRole,
+		UserRole:  userRole,
 	}, nil
 }
 
@@ -212,8 +232,7 @@ func (s *WorkspaceService) CanUserAccessWorkspace(
 	user *users_models.User,
 ) (bool, *users_enums.WorkspaceRole, error) {
 	if user.Role == users_enums.UserRoleAdmin {
-		adminRole := users_enums.WorkspaceRoleOwner
-		return true, &adminRole, nil
+		return true, nil, nil
 	}
 
 	role, err := s.membershipRepository.GetUserWorkspaceRole(ctx, workspaceID, user.ID)
@@ -252,7 +271,7 @@ func (s *WorkspaceService) CanUserManageDBs(
 	user *users_models.User,
 ) (bool, error) {
 	if user.Role == users_enums.UserRoleAdmin {
-		return true, nil
+		return false, nil
 	}
 
 	role, err := s.membershipRepository.GetUserWorkspaceRole(ctx, workspaceID, user.ID)

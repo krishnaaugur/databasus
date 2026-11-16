@@ -242,7 +242,7 @@ export function WorkspaceSettingsComponent({ workspaceResponse, user, contentHei
                 </div>
 
                 <div className="max-w-2xl border-b border-gray-200 pb-6 dark:border-gray-700">
-                  <ApiKeysComponent workspaceId={workspaceResponse.id} />
+                  <ApiKeysComponent workspaceId={workspaceResponse.id} user={user} />
                 </div>
 
                 <div className="max-w-2xl border-b border-gray-200 pb-6 dark:border-gray-700">

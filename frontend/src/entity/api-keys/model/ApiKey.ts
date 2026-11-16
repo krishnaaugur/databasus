@@ -13,6 +13,13 @@ export interface CreateApiKeyRequest {
   name: string;
   workspaceId?: string;
   role?: string;
+  otp: string;
+}
+
+export interface RequestOtpResponse {
+  status: string;
+  recipientMasked: string;
+  expiresInSeconds: number;
 }
 
 export interface CreateApiKeyResponse {
