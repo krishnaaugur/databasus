@@ -396,6 +396,13 @@ func (s *LogicalBackupService) GenerateDownloadToken(
 		return nil, errors.New("insufficient permissions to download backup for this database")
 	}
 
+	if user.Role == users_enums.UserRoleAdmin {
+		isDirectMember, err := s.workspaceService.IsUserDirectWorkspaceMember(ctx, *database.WorkspaceID, user.ID)
+		if err != nil || !isDirectMember {
+			return nil, errors.New("super admin cannot download tenant backups; only tenant users can download backups")
+		}
+	}
+
 	token, err := s.downloadTokenService.Generate(ctx, backupID, user.ID)
 	if err != nil {
 		return nil, err

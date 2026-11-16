@@ -336,8 +336,16 @@ func (s *PhysicalBackupService) GenerateRestoreToken(
 	databaseID uuid.UUID,
 	request *backups_dto_physical.GenerateRestoreTokenRequest,
 ) (string, error) {
-	if _, err := s.databaseService.GetDatabase(ctx, user, databaseID); err != nil {
+	database, err := s.databaseService.GetDatabase(ctx, user, databaseID)
+	if err != nil {
 		return "", err
+	}
+
+	if database.WorkspaceID != nil && user.Role == users_enums.UserRoleAdmin {
+		isDirectMember, err := s.workspaceService.IsUserDirectWorkspaceMember(ctx, *database.WorkspaceID, user.ID)
+		if err != nil || !isDirectMember {
+			return "", errors.New("super admin cannot restore or download tenant backups; only tenant users can perform this action")
+		}
 	}
 
 	if _, err := s.chainViewService.ResolveRestoreSet(databaseID, request.TargetTime); err != nil {
@@ -364,8 +372,16 @@ func (s *PhysicalBackupService) GenerateBackupRestoreToken(
 		return "", ErrBackupNotFound
 	}
 
-	if _, err := s.databaseService.GetDatabase(ctx, user, databaseID); err != nil {
+	database, err := s.databaseService.GetDatabase(ctx, user, databaseID)
+	if err != nil {
 		return "", err
+	}
+
+	if database.WorkspaceID != nil && user.Role == users_enums.UserRoleAdmin {
+		isDirectMember, err := s.workspaceService.IsUserDirectWorkspaceMember(ctx, *database.WorkspaceID, user.ID)
+		if err != nil || !isDirectMember {
+			return "", errors.New("super admin cannot restore or download tenant backups; only tenant users can perform this action")
+		}
 	}
 
 	if _, err := s.chainViewService.ResolveRestoreSetForBackup(databaseID, backupID); err != nil {

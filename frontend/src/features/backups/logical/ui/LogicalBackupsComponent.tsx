@@ -415,23 +415,25 @@ export const LogicalBackupsComponent = ({
                   </Tooltip>
                 )}
 
-                <Tooltip title={t(DOWNLOAD_TOOLTIP_KEYS[database.type])}>
-                  {downloadingBackupId === record.id ? (
-                    <SyncOutlined spin style={{ color: '#155dfc' }} />
-                  ) : (
-                    <DownloadOutlined
-                      className="cursor-pointer"
-                      onClick={() => {
-                        if (downloadingBackupId) return;
-                        setDownloadingBackupId(record.id);
-                      }}
-                      style={{
-                        opacity: downloadingBackupId ? 0.2 : 1,
-                        color: '#155dfc',
-                      }}
-                    />
-                  )}
-                </Tooltip>
+                {isCanManageDBs && (
+                  <Tooltip title={t(DOWNLOAD_TOOLTIP_KEYS[database.type])}>
+                    {downloadingBackupId === record.id ? (
+                      <SyncOutlined spin style={{ color: '#155dfc' }} />
+                    ) : (
+                      <DownloadOutlined
+                        className="cursor-pointer"
+                        onClick={() => {
+                          if (downloadingBackupId) return;
+                          setDownloadingBackupId(record.id);
+                        }}
+                        style={{
+                          opacity: downloadingBackupId ? 0.2 : 1,
+                          color: '#155dfc',
+                        }}
+                      />
+                    )}
+                  </Tooltip>
+                )}
               </>
             )}
           </div>
