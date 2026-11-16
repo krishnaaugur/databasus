@@ -59,16 +59,13 @@ WHERE workspace_id IN (
        OR LOWER(name) LIKE '%multi%tenant%'
 );
 
--- 6. Clean up databases, storages, notifiers in the targeted workspaces or created by non-admin users
+-- 6. Clean up databases, storages, notifiers in the targeted workspaces
 DELETE FROM databases
 WHERE workspace_id IN (
     SELECT id FROM workspaces
     WHERE LOWER(name) = 'qms'
        OR LOWER(name) LIKE '%qms%'
        OR LOWER(name) LIKE '%multi%tenant%'
-) OR user_id IN (
-    SELECT id FROM users
-    WHERE role != 'ADMIN' AND is_root_admin = FALSE
 );
 
 DELETE FROM storages
@@ -77,9 +74,6 @@ WHERE workspace_id IN (
     WHERE LOWER(name) = 'qms'
        OR LOWER(name) LIKE '%qms%'
        OR LOWER(name) LIKE '%multi%tenant%'
-) OR user_id IN (
-    SELECT id FROM users
-    WHERE role != 'ADMIN' AND is_root_admin = FALSE
 );
 
 DELETE FROM notifiers
@@ -88,9 +82,6 @@ WHERE workspace_id IN (
     WHERE LOWER(name) = 'qms'
        OR LOWER(name) LIKE '%qms%'
        OR LOWER(name) LIKE '%multi%tenant%'
-) OR user_id IN (
-    SELECT id FROM users
-    WHERE role != 'ADMIN' AND is_root_admin = FALSE
 );
 
 -- 7. Clean up workspace memberships
