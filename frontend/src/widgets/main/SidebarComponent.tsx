@@ -52,7 +52,7 @@ export const SidebarComponent = ({
   contentHeight,
 }: Props) => {
   const { t } = useTranslation();
-  const { locale, formatNumber } = useLocale();
+  const { formatNumber } = useLocale();
   const isMobile = useIsMobile();
   const { resolvedTheme } = useTheme();
 
