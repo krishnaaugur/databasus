@@ -97,6 +97,21 @@ func (in *DatabaseRequestInput) normalizeFlatFields() {
 				SslMode:  postgresql_shared.PostgresSslModeDisable,
 			}
 		}
+	case DatabaseTypePostgresPhysical:
+		if in.PostgresqlPhysical == nil {
+			port := in.Port
+			if port == 0 {
+				port = 5432
+			}
+			in.PostgresqlPhysical = &postgresql_physical.PostgresqlPhysicalDatabase{
+				Host:     in.Host,
+				Port:     port,
+				Username: in.DbUsername,
+				Password: in.DbPassword,
+				Version:  tools.PostgresqlVersion16,
+				SslMode:  postgresql_shared.PostgresSslModeDisable,
+			}
+		}
 	case DatabaseTypeMysql:
 		if in.Mysql == nil {
 			port := in.Port
@@ -109,6 +124,7 @@ func (in *DatabaseRequestInput) normalizeFlatFields() {
 				Username: in.DbUsername,
 				Password: in.DbPassword,
 				Database: in.DbName,
+				Version:  tools.MysqlVersion80,
 			}
 		}
 	case DatabaseTypeMariadb:
@@ -123,6 +139,7 @@ func (in *DatabaseRequestInput) normalizeFlatFields() {
 				Username: in.DbUsername,
 				Password: in.DbPassword,
 				Database: in.DbName,
+				Version:  tools.MariadbVersion1011,
 			}
 		}
 	case DatabaseTypeMongodb:
@@ -131,12 +148,18 @@ func (in *DatabaseRequestInput) normalizeFlatFields() {
 			if port == 0 {
 				port = 27017
 			}
+			dbName := ""
+			if in.DbName != nil {
+				dbName = *in.DbName
+			}
 			in.Mongodb = &mongodb.MongodbDatabase{
-				Host:     in.Host,
-				Port:     port,
-				Username: in.DbUsername,
-				Password: in.DbPassword,
-				Database: in.DbName,
+				Host:         in.Host,
+				Port:         &port,
+				Username:     in.DbUsername,
+				Password:     in.DbPassword,
+				Database:     dbName,
+				AuthDatabase: "admin",
+				Version:      tools.MongodbVersion7,
 			}
 		}
 	}

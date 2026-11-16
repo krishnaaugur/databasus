@@ -99,10 +99,6 @@ func DecryptDatabaseSensitiveFields(database *Database, rawKey string) error {
 			return fmt.Errorf("failed to decrypt postgresql password: %w", err)
 		}
 
-		if database.PostgresqlPhysical.ReplicationPassword, err = DecryptWithClientKey(database.PostgresqlPhysical.ReplicationPassword, rawKey); err != nil {
-			return fmt.Errorf("failed to decrypt postgresql replication password: %w", err)
-		}
-
 		if database.PostgresqlPhysical.SshTunnel.Password, err = DecryptWithClientKey(database.PostgresqlPhysical.SshTunnel.Password, rawKey); err != nil {
 			return fmt.Errorf("failed to decrypt ssh password: %w", err)
 		}
