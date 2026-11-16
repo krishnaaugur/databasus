@@ -1,11 +1,7 @@
-import { useTranslation } from 'react-i18next';
-
 import { getWebsitePageUrl, useLocale } from '../../../shared/i18n';
-import { LanguageThemeControlComponent } from '../../../shared/ui';
-import { StarButtonComponent } from '../../../shared/ui/StarButtonComponent';
+import { ThemeToggleComponent } from '../../../shared/ui';
 
 export function AuthNavbarComponent() {
-  const { t } = useTranslation();
   const { locale } = useLocale();
 
   const homePageUrl = getWebsitePageUrl('home', locale);
@@ -26,28 +22,8 @@ export function AuthNavbarComponent() {
       </div>
 
       <div className="mr-3 ml-auto hidden items-center gap-5 sm:flex">
-        <a
-          className="!text-black hover:opacity-80 dark:!text-gray-200"
-          href={getWebsitePageUrl('installation', locale)}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {t('app.navigation.docs')}
-        </a>
-
-        <a
-          className="!text-black hover:opacity-80 dark:!text-gray-200"
-          href="https://t.me/databasus_community"
-          target="_blank"
-          rel="noreferrer"
-        >
-          {t('app.navigation.community')}
-        </a>
-
         <div className="flex items-center gap-2">
-          <StarButtonComponent />
-
-          <LanguageThemeControlComponent />
+          <ThemeToggleComponent />
         </div>
       </div>
     </div>

@@ -31,8 +31,7 @@ import {
 } from '../../features/workspaces';
 import { useIsMobile, useIsNewGitHubVersionAvailable, useScreenHeight } from '../../shared/hooks';
 import { getWebsitePageUrl, translateApiError, useLocale } from '../../shared/i18n';
-import { LanguageThemeControlComponent } from '../../shared/ui';
-import { StarButtonComponent } from '../../shared/ui/StarButtonComponent';
+import { ThemeToggleComponent } from '../../shared/ui';
 import { getDiskUsageValues } from './getDiskUsageValues';
 import { type MainTab, SidebarComponent, type SidebarTab } from './SidebarComponent';
 import { WorkspaceSelectionComponent } from './WorkspaceSelectionComponent';
@@ -252,24 +251,6 @@ export const MainScreenComponent = () => {
         </div>
 
         <div className="ml-auto hidden items-center gap-5 md:flex">
-          <a
-            className="!text-black hover:opacity-80 dark:!text-gray-200"
-            href={getWebsitePageUrl('installation', locale)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t('app.navigation.docs')}
-          </a>
-
-          <a
-            className="!text-black hover:opacity-80 dark:!text-gray-200"
-            href="https://t.me/databasus_community"
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t('app.navigation.community')}
-          </a>
-
           {isUsedMoreThan85Percent && (
             <Tooltip title={t('app.diskUsage.hint')}>
               <div
@@ -285,9 +266,7 @@ export const MainScreenComponent = () => {
           )}
 
           <div className="flex items-center gap-2">
-            <StarButtonComponent />
-
-            <LanguageThemeControlComponent />
+            <ThemeToggleComponent />
           </div>
         </div>
 
