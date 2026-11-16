@@ -98,7 +98,7 @@ func (s *TenantCatalogService) CreateCatalog(
 		DbUsername:          req.DbUsername,
 		DbPassword:          req.DbPassword,
 		DbSslMode:           sslMode,
-		TableName:           req.TableName,
+		TargetTableName:     req.TableName,
 		IdentifierColumn:    idCol,
 		HostColumn:          hostCol,
 		PortColumn:          portCol,
@@ -278,7 +278,7 @@ func (s *TenantCatalogService) SyncCatalog(
 		pq.QuoteIdentifier(catalog.DatabaseColumn),
 		pq.QuoteIdentifier(catalog.UserColumn),
 		pq.QuoteIdentifier(catalog.PasswordColumn),
-		pq.QuoteIdentifier(catalog.TableName),
+		pq.QuoteIdentifier(catalog.TargetTableName),
 	)
 
 	if catalog.FilterCondition != "" {
@@ -287,7 +287,7 @@ func (s *TenantCatalogService) SyncCatalog(
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		s.recordSyncFailure(ctx, catalog, fmt.Sprintf("failed to query tenant table '%s': %v", catalog.TableName, err))
+		s.recordSyncFailure(ctx, catalog, fmt.Sprintf("failed to query tenant table '%s': %v", catalog.TargetTableName, err))
 		return nil, fmt.Errorf("querying tenant table failed: %w", err)
 	}
 	defer rows.Close()
@@ -402,7 +402,7 @@ func (s *TenantCatalogService) toResponseDTO(c *TenantCatalog) *TenantCatalogRes
 		DbName:                   c.DbName,
 		DbUsername:               c.DbUsername,
 		DbSslMode:                c.DbSslMode,
-		TableName:                c.TableName,
+		TableName:                c.TargetTableName,
 		IdentifierColumn:         c.IdentifierColumn,
 		HostColumn:               c.HostColumn,
 		PortColumn:               c.PortColumn,

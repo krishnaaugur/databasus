@@ -22,7 +22,7 @@ type TenantCatalog struct {
 	DbSslMode  string `json:"dbSslMode" gorm:"type:varchar(50);not null;default:'require'"`
 
 	// Table and column discovery mapping
-	TableName        string `json:"tableName" gorm:"type:varchar(255);not null"`
+	TargetTableName  string `json:"tableName" gorm:"column:table_name;type:varchar(255);not null"`
 	IdentifierColumn string `json:"identifierColumn" gorm:"type:varchar(100);not null;default:'subdomain'"`
 	HostColumn       string `json:"hostColumn" gorm:"type:varchar(100);not null;default:'db_endpoint'"`
 	PortColumn       string `json:"portColumn" gorm:"type:varchar(100);not null;default:'db_port'"`
