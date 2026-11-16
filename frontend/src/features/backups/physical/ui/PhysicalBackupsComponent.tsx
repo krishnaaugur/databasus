@@ -259,13 +259,15 @@ export const PhysicalBackupsComponent = ({
 
           {record.status === PhysicalBackupStatus.COMPLETED && (
             <>
-              <Tooltip title={t('backups.physical.list.restoreFromThisBackup')}>
-                <CloudUploadOutlined
-                  className="cursor-pointer"
-                  onClick={() => setRestoringBackup(record)}
-                  style={{ color: '#155dfc' }}
-                />
-              </Tooltip>
+              {isCanManageDBs && (
+                <Tooltip title={t('backups.physical.list.restoreFromThisBackup')}>
+                  <CloudUploadOutlined
+                    className="cursor-pointer"
+                    onClick={() => setRestoringBackup(record)}
+                    style={{ color: '#155dfc' }}
+                  />
+                </Tooltip>
+              )}
 
               {isCanManageDBs &&
                 (deletingBackupId === record.id ? (
@@ -458,23 +460,25 @@ export const PhysicalBackupsComponent = ({
         {t('backups.physical.list.totalUsage', { size: formatSize(totalUsageMb, formatNumber) })}
       </div>
 
-      <div className="mt-4 flex items-center">
-        <Dropdown.Button
-          className="!w-auto"
-          type="primary"
-          loading={isTriggeringBackup}
-          disabled={isTriggeringBackup}
-          icon={<DownOutlined />}
-          menu={backupNowMenu}
-          onClick={() => triggerBackup('auto')}
-        >
-          {t('backups.physical.list.backUpNow')}
-        </Dropdown.Button>
+      {isCanManageDBs && (
+        <div className="mt-4 flex items-center">
+          <Dropdown.Button
+            className="!w-auto"
+            type="primary"
+            loading={isTriggeringBackup}
+            disabled={isTriggeringBackup}
+            icon={<DownOutlined />}
+            menu={backupNowMenu}
+            onClick={() => triggerBackup('auto')}
+          >
+            {t('backups.physical.list.backUpNow')}
+          </Dropdown.Button>
 
-        <Button className="ml-2" onClick={() => setIsPitrModalOpen(true)}>
-          {t('backups.physical.list.restore')}
-        </Button>
-      </div>
+          <Button className="ml-2" onClick={() => setIsPitrModalOpen(true)}>
+            {t('backups.physical.list.restore')}
+          </Button>
+        </div>
+      )}
 
       <div className="mt-5 w-full md:max-w-[890px]">
         {/* Mobile card view */}

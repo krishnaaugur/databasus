@@ -523,6 +523,7 @@ func (p *PostgresqlLogicalDatabase) CreateReadOnlyUser(
 			fmt.Sprintf(`CREATE USER "%s" WITH PASSWORD '%s' LOGIN`, baseUsername, newPassword),
 		)
 		if err != nil {
+			_ = tx.Rollback(ctx)
 			if err.Error() != "" && attempt < maxRetries-1 {
 				continue
 			}
@@ -547,7 +548,7 @@ func (p *PostgresqlLogicalDatabase) CreateReadOnlyUser(
 
 		if publicSchemaExists {
 			// Revoke CREATE from PUBLIC role (affects all users)
-			_, err = tx.Exec(ctx, `REVOKE CREATE ON SCHEMA public FROM PUBLIC`)
+			err = execInSavepoint(ctx, tx, `REVOKE CREATE ON SCHEMA public FROM PUBLIC`)
 			if err != nil {
 				if strings.Contains(err.Error(), "permission denied") {
 					logger.WarnContext(
@@ -562,8 +563,9 @@ func (p *PostgresqlLogicalDatabase) CreateReadOnlyUser(
 			}
 
 			// Now revoke from the specific user as well (belt and suspenders)
-			_, err = tx.Exec(
+			err = execInSavepoint(
 				ctx,
+				tx,
 				fmt.Sprintf(`REVOKE CREATE ON SCHEMA public FROM "%s"`, baseUsername),
 			)
 			if err != nil {
@@ -590,14 +592,15 @@ func (p *PostgresqlLogicalDatabase) CreateReadOnlyUser(
 		}
 
 		// Revoke TEMP privilege from PUBLIC role (like CREATE on public schema, TEMP is granted to PUBLIC by default)
-		_, err = tx.Exec(ctx, fmt.Sprintf(`REVOKE TEMP ON DATABASE "%s" FROM PUBLIC`, *p.Database))
+		err = execInSavepoint(ctx, tx, fmt.Sprintf(`REVOKE TEMP ON DATABASE "%s" FROM PUBLIC`, *p.Database))
 		if err != nil {
 			logger.WarnContext(ctx, "failed to revoke TEMP from PUBLIC", "error", err)
 		}
 
 		// Also revoke from the specific user (belt and suspenders)
-		_, err = tx.Exec(
+		err = execInSavepoint(
 			ctx,
+			tx,
 			fmt.Sprintf(`REVOKE TEMP ON DATABASE "%s" FROM "%s"`, *p.Database, baseUsername),
 		)
 		if err != nil {
@@ -643,8 +646,9 @@ func (p *PostgresqlLogicalDatabase) CreateReadOnlyUser(
 		// Step 5: Grant USAGE on each schema and explicitly prevent CREATE
 		for _, schema := range schemas {
 			// Revoke CREATE specifically (handles inheritance from PUBLIC role)
-			_, err = tx.Exec(
+			err = execInSavepoint(
 				ctx,
+				tx,
 				fmt.Sprintf(`REVOKE CREATE ON SCHEMA "%s" FROM "%s"`, schema, baseUsername),
 			)
 			if err != nil {
@@ -802,8 +806,9 @@ func (p *PostgresqlLogicalDatabase) CreateReadOnlyUser(
 			// We log warnings but continue - user creation should succeed even if some roles can't be configured
 			for _, so := range schemaOwners {
 				// Try to set default privileges for tables
-				_, err = tx.Exec(
+				err = execInSavepoint(
 					ctx,
+					tx,
 					fmt.Sprintf(
 						`ALTER DEFAULT PRIVILEGES FOR ROLE "%s" IN SCHEMA "%s" GRANT SELECT ON TABLES TO "%s"`,
 						so.RoleName,
@@ -827,8 +832,9 @@ func (p *PostgresqlLogicalDatabase) CreateReadOnlyUser(
 				}
 
 				// Try to set default privileges for sequences
-				_, err = tx.Exec(
+				err = execInSavepoint(
 					ctx,
+					tx,
 					fmt.Sprintf(
 						`ALTER DEFAULT PRIVILEGES FOR ROLE "%s" IN SCHEMA "%s" GRANT SELECT ON SEQUENCES TO "%s"`,
 						so.RoleName,
@@ -999,4 +1005,20 @@ func extractSupabaseProjectID(username string) string {
 		return after
 	}
 	return ""
+}
+
+func execInSavepoint(ctx context.Context, tx pgx.Tx, query string) error {
+	savepoint, err := tx.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	if _, execErr := savepoint.Exec(ctx, query); execErr != nil {
+		if rollbackErr := savepoint.Rollback(ctx); rollbackErr != nil {
+			return fmt.Errorf("failed to roll back savepoint after execution error (%w): %w", execErr, rollbackErr)
+		}
+		return execErr
+	}
+
+	return savepoint.Commit(ctx)
 }

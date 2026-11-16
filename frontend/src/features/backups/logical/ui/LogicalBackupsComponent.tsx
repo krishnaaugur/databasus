@@ -401,17 +401,19 @@ export const LogicalBackupsComponent = ({
                     </Tooltip>
                   ))}
 
-                <Tooltip title={t('backups.logical.list.actions.restore')}>
-                  <CloudUploadOutlined
-                    className="cursor-pointer"
-                    onClick={() => {
-                      setShowingRestoresBackupId(record.id);
-                    }}
-                    style={{
-                      color: '#155dfc',
-                    }}
-                  />
-                </Tooltip>
+                {isCanManageDBs && (
+                  <Tooltip title={t('backups.logical.list.actions.restore')}>
+                    <CloudUploadOutlined
+                      className="cursor-pointer"
+                      onClick={() => {
+                        setShowingRestoresBackupId(record.id);
+                      }}
+                      style={{
+                        color: '#155dfc',
+                      }}
+                    />
+                  </Tooltip>
+                )}
 
                 <Tooltip title={t(DOWNLOAD_TOOLTIP_KEYS[database.type])}>
                   {downloadingBackupId === record.id ? (
@@ -555,18 +557,20 @@ export const LogicalBackupsComponent = ({
 
       <div className="mt-5" />
 
-      <div className="flex items-center">
-        <Button
-          onClick={makeBackup}
-          className="mr-1"
-          type="primary"
-          disabled={isMakeBackupRequestLoading}
-          loading={isMakeBackupRequestLoading}
-        >
-          <span className="md:hidden">{t('backups.logical.list.backupNow')}</span>
-          <span className="hidden md:inline">{t('backups.logical.list.makeBackupNow')}</span>
-        </Button>
-      </div>
+      {isCanManageDBs && (
+        <div className="flex items-center">
+          <Button
+            onClick={makeBackup}
+            className="mr-1"
+            type="primary"
+            disabled={isMakeBackupRequestLoading}
+            loading={isMakeBackupRequestLoading}
+          >
+            <span className="md:hidden">{t('backups.logical.list.backupNow')}</span>
+            <span className="hidden md:inline">{t('backups.logical.list.makeBackupNow')}</span>
+          </Button>
+        </div>
+      )}
 
       <div className="mt-5 w-full md:max-w-[850px]">
         {/* Mobile card view */}
