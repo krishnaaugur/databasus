@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"databasus-backend/internal/config"
 	audit_logs "databasus-backend/internal/features/audit_logs"
 	audit_logs_models "databasus-backend/internal/features/audit_logs/models"
 	users_dto "databasus-backend/internal/features/users/dto"

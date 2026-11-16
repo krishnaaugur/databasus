@@ -485,7 +485,7 @@ func (c *UserController) ValidateInvitation(ctx *gin.Context) {
 // @Failure 400
 // @Router /users/invitations/accept [post]
 func (c *UserController) AcceptInvitation(ctx *gin.Context) {
-	var request users_dto.AcceptInvitationRequestDTO
+	var request user_dto.AcceptInvitationRequestDTO
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
 		return
