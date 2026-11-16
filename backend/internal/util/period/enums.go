@@ -21,17 +21,17 @@ const (
 // ToDuration converts Period to time.Duration
 func (p TimePeriod) ToDuration() time.Duration {
 	switch p {
-	case PeriodDay:
+	case PeriodDay, "1_DAY":
 		return 24 * time.Hour
-	case PeriodWeek:
+	case PeriodWeek, "7_DAYS":
 		return 7 * 24 * time.Hour
-	case PeriodMonth:
+	case PeriodMonth, "30_DAYS":
 		return 30 * 24 * time.Hour
-	case Period3Month:
+	case Period3Month, "90_DAYS":
 		return 90 * 24 * time.Hour
-	case Period6Month:
+	case Period6Month, "180_DAYS":
 		return 180 * 24 * time.Hour
-	case PeriodYear:
+	case PeriodYear, "365_DAYS", "1_YEAR":
 		return 365 * 24 * time.Hour
 	case Period2Years:
 		return 2 * 365 * 24 * time.Hour
@@ -44,7 +44,7 @@ func (p TimePeriod) ToDuration() time.Duration {
 	case PeriodForever:
 		return 0
 	default:
-		panic("unknown period: " + string(p))
+		return 30 * 24 * time.Hour
 	}
 }
 
