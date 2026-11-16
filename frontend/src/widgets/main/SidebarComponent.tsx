@@ -12,6 +12,9 @@ import { ThemeToggleComponent } from '../../shared/ui';
 import { getDiskUsageValues } from './getDiskUsageValues';
 
 export type MainTab =
+  | 'dashboard'
+  | 'admin-dashboard'
+  | 'tenants'
   | 'notifiers'
   | 'storages'
   | 'databases'

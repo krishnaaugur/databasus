@@ -28,6 +28,9 @@ import { ProfileComponent } from '../../features/users';
 import { UsersComponent } from '../../features/users/ui/UsersComponent';
 import {
   CreateWorkspaceDialogComponent,
+  SuperAdminDashboardComponent,
+  TenantDashboardComponent,
+  TenantsComponent,
   WorkspaceSettingsComponent,
 } from '../../features/workspaces';
 import { useIsMobile, useIsNewGitHubVersionAvailable, useScreenHeight } from '../../shared/hooks';
@@ -60,6 +63,7 @@ export const MainScreenComponent = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [hasInitializedTab, setHasInitializedTab] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -117,6 +121,17 @@ export const MainScreenComponent = () => {
     }
   }, [user?.role, selectedWorkspace?.id]);
 
+  useEffect(() => {
+    if (user && !hasInitializedTab) {
+      setHasInitializedTab(true);
+      if (user.role === UserRole.ADMIN) {
+        setSelectedTab('admin-dashboard');
+      } else {
+        setSelectedTab('dashboard');
+      }
+    }
+  }, [user, hasInitializedTab]);
+
   const handleCreateWorkspace = () => {
     setShowCreateWorkspaceDialog(true);
   };
@@ -148,6 +163,26 @@ export const MainScreenComponent = () => {
   );
 
   const tabs: SidebarTab[] = [
+    {
+      text: isSuperAdmin ? 'Platform Dashboard' : 'Dashboard',
+      name: isSuperAdmin ? 'admin-dashboard' : 'dashboard',
+      icon: '/icons/menu/dashboard-gray.svg',
+      selectedIcon: '/icons/menu/dashboard-white.svg',
+      onClick: () => setSelectedTab(isSuperAdmin ? 'admin-dashboard' : 'dashboard'),
+      isAdminOnly: false,
+      marginTop: '0px',
+      isVisible: isSuperAdmin || !!selectedWorkspace,
+    },
+    {
+      text: 'Tenants',
+      name: 'tenants',
+      icon: '/icons/menu/tenants-gray.svg',
+      selectedIcon: '/icons/menu/tenants-white.svg',
+      onClick: () => setSelectedTab('tenants'),
+      isAdminOnly: true,
+      marginTop: '0px',
+      isVisible: isSuperAdmin,
+    },
     {
       text: t('app.navigation.databases'),
       name: 'databases',
@@ -297,6 +332,45 @@ export const MainScreenComponent = () => {
             contentHeight={contentHeight}
           />
 
+          {selectedTab === 'admin-dashboard' && (
+            <div className="flex-1 md:pl-4">
+              <SuperAdminDashboardComponent
+                workspaces={workspaces}
+                user={user}
+                diskUsage={diskUsage}
+                contentHeight={contentHeight}
+                onCreateTenant={handleCreateWorkspace}
+                onNavigateToTab={(tab: string) => setSelectedTab(tab as MainTab)}
+                onSelectWorkspace={(ws) => {
+                  setSelectedWorkspace(ws);
+                  setSelectedTab('databases');
+                }}
+                onRefreshWorkspaces={async () => {
+                  const res = await workspaceApi.getWorkspaces();
+                  setWorkspaces(res.workspaces);
+                }}
+              />
+            </div>
+          )}
+
+          {selectedTab === 'tenants' && (
+            <div className="flex-1 md:pl-4">
+              <TenantsComponent
+                workspaces={workspaces}
+                contentHeight={contentHeight}
+                onCreateTenant={handleCreateWorkspace}
+                onSelectWorkspace={(ws) => {
+                  setSelectedWorkspace(ws);
+                  setSelectedTab('databases');
+                }}
+                onRefreshWorkspaces={async () => {
+                  const res = await workspaceApi.getWorkspaces();
+                  setWorkspaces(res.workspaces);
+                }}
+              />
+            </div>
+          )}
+
           {selectedTab === 'profile' && (
             <div className="flex-1 md:pl-4">
               <ProfileComponent contentHeight={contentHeight} />
@@ -315,7 +389,8 @@ export const MainScreenComponent = () => {
             </div>
           )}
 
-          {(selectedTab === 'databases' ||
+          {(selectedTab === 'dashboard' ||
+            selectedTab === 'databases' ||
             selectedTab === 'storages' ||
             selectedTab === 'notifiers' ||
             selectedTab === 'settings' ||
@@ -397,6 +472,17 @@ export const MainScreenComponent = () => {
                             'Tenant database credentials and raw backups are encrypted with client-held keys. Backup & restore actions are restricted to tenant users.'
                           }
                         </p>
+                      </div>
+                    )}
+                    {selectedTab === 'dashboard' && selectedWorkspace && (
+                      <div className="flex-1 md:pl-3">
+                        <TenantDashboardComponent
+                          workspace={selectedWorkspace}
+                          user={user}
+                          contentHeight={contentHeight}
+                          onNavigateToTab={(tab: string) => setSelectedTab(tab as MainTab)}
+                          key={`dashboard-${selectedWorkspace.id}`}
+                        />
                       </div>
                     )}
                     {selectedTab === 'api-docs' && selectedWorkspace && (
