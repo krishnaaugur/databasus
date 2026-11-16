@@ -13,6 +13,7 @@ import (
 	"databasus-backend/internal/features/databases/databases/mongodb"
 	"databasus-backend/internal/features/databases/databases/mysql"
 	postgresql_logical "databasus-backend/internal/features/databases/databases/postgresql/logical"
+	postgresql_physical "databasus-backend/internal/features/databases/databases/postgresql/physical"
 	postgresql_shared "databasus-backend/internal/features/databases/databases/postgresql/shared"
 	users_middleware "databasus-backend/internal/features/users/middleware"
 	users_services "databasus-backend/internal/features/users/services"
