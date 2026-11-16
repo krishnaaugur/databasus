@@ -193,6 +193,34 @@ func Test_CreateDatabase_WithoutConnectionFields_ValidationFails(t *testing.T) {
 	assert.Contains(t, string(testResp.Body), "host is required")
 }
 
+func Test_CreateDatabase_WhenPasswordIsEncryptedAndKeyMissing_ReturnsBadRequest(t *testing.T) {
+	router := createTestRouter()
+	owner := users_testing.CreateTestUser(t.Context(), users_enums.UserRoleMember)
+	workspace := workspaces_testing.CreateTestWorkspace(t.Context(), "Test Workspace", owner, router)
+	defer workspaces_testing.RemoveTestWorkspace(t.Context(), workspace, router)
+
+	request := map[string]any{
+		"name":        "Test Database",
+		"workspaceId": workspace.ID,
+		"type":        "POSTGRESQL",
+		"host":        "localhost",
+		"port":        5432,
+		"dbUsername":  "postgres",
+		"dbPassword":  "enc:bm9uY2UxMjM0NTY3:Y2lwaGVydGV4dDEyMw==",
+	}
+
+	testResp := test_utils.MakePostRequest(
+		t,
+		router,
+		"/api/v1/databases",
+		"Bearer "+owner.Token,
+		request,
+		http.StatusBadRequest,
+	)
+
+	assert.Contains(t, string(testResp.Body), "encryption key")
+}
+
 func Test_UpdateDatabase_PermissionsEnforced(t *testing.T) {
 	tests := []struct {
 		name               string

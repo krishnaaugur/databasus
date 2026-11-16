@@ -6,6 +6,7 @@ import (
 	users_services "databasus-backend/internal/features/users/services"
 	workspaces_interfaces "databasus-backend/internal/features/workspaces/interfaces"
 	workspaces_repositories "databasus-backend/internal/features/workspaces/repositories"
+	"databasus-backend/internal/util/encryption"
 	"databasus-backend/internal/util/logger"
 )
 
@@ -21,6 +22,7 @@ var workspaceService = &WorkspaceService{
 	audit_logs.GetAuditLogService(),
 	users_services.GetSettingsService(),
 	[]workspaces_interfaces.WorkspaceDeletionListener{},
+	encryption.GetFieldEncryptor(),
 }
 
 var membershipService = &MembershipService{

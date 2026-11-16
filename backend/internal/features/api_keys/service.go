@@ -20,6 +20,7 @@ import (
 	users_models "databasus-backend/internal/features/users/models"
 	users_repositories "databasus-backend/internal/features/users/repositories"
 	workspaces_repositories "databasus-backend/internal/features/workspaces/repositories"
+	"databasus-backend/internal/util/encryption"
 )
 
 type APIKeyService struct {
@@ -28,6 +29,7 @@ type APIKeyService struct {
 	membershipRepository *workspaces_repositories.MembershipRepository
 	emailSender          users_interfaces.EmailSender
 	logger               *slog.Logger
+	fieldEncryptor       encryption.FieldEncryptor
 }
 
 func (s *APIKeyService) hashSecret(secret string) string {
@@ -209,24 +211,33 @@ func (s *APIKeyService) CreateAPIKey(
 		return nil, fmt.Errorf("failed to generate encryption key: %w", err)
 	}
 
+	encryptedEncryptionKey := ""
+	if s.fieldEncryptor != nil {
+		encryptedEncryptionKey, err = s.fieldEncryptor.Encrypt(rawEncryptionKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt encryption key: %w", err)
+		}
+	}
+
 	keyRole := req.Role
 	if keyRole == "" {
 		keyRole = string(users_enums.WorkspaceRoleAdmin)
 	}
 
 	apiKey := &APIKey{
-		ID:                uuid.New(),
-		Name:              req.Name,
-		KeyID:             keyID,
-		SecretHash:        s.hashSecret(rawSecret),
-		EncryptionKeyHash: s.hashEncryptionKey(rawEncryptionKey),
-		WorkspaceID:       req.WorkspaceID,
-		UserID:            creator.ID,
-		Role:              keyRole,
-		Permissions:       "[]",
-		IsActive:          true,
-		CreatedAt:         time.Now().UTC(),
-		UpdatedAt:         time.Now().UTC(),
+		ID:                     uuid.New(),
+		Name:                   req.Name,
+		KeyID:                  keyID,
+		SecretHash:             s.hashSecret(rawSecret),
+		EncryptionKeyHash:      s.hashEncryptionKey(rawEncryptionKey),
+		EncryptedEncryptionKey: encryptedEncryptionKey,
+		WorkspaceID:            req.WorkspaceID,
+		UserID:                 creator.ID,
+		Role:                   keyRole,
+		Permissions:            "[]",
+		IsActive:               true,
+		CreatedAt:              time.Now().UTC(),
+		UpdatedAt:              time.Now().UTC(),
 	}
 
 	if err := s.repository.Create(ctx, apiKey); err != nil {
@@ -355,4 +366,25 @@ func (s *APIKeyService) RevokeAPIKey(
 	}
 
 	return s.repository.Delete(ctx, id)
+}
+
+func (s *APIKeyService) GetDecryptedEncryptionKey(ctx context.Context, apiKey *APIKey) (string, error) {
+	if apiKey == nil || apiKey.EncryptedEncryptionKey == "" || s.fieldEncryptor == nil {
+		return "", nil
+	}
+
+	return s.fieldEncryptor.Decrypt(apiKey.EncryptedEncryptionKey)
+}
+
+func (s *APIKeyService) GetWorkspaceEncryptionKey(ctx context.Context, workspaceID uuid.UUID) (string, error) {
+	if s.fieldEncryptor == nil {
+		return "", nil
+	}
+
+	apiKey, err := s.repository.GetFirstActiveByWorkspaceID(ctx, workspaceID)
+	if err != nil || apiKey == nil || apiKey.EncryptedEncryptionKey == "" {
+		return "", nil
+	}
+
+	return s.fieldEncryptor.Decrypt(apiKey.EncryptedEncryptionKey)
 }

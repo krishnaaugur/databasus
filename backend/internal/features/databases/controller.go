@@ -3,14 +3,21 @@ package databases
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"databasus-backend/internal/features/api_keys"
+	"databasus-backend/internal/features/databases/databases/mariadb"
+	"databasus-backend/internal/features/databases/databases/mongodb"
+	"databasus-backend/internal/features/databases/databases/mysql"
+	postgresql_logical "databasus-backend/internal/features/databases/databases/postgresql/logical"
 	postgresql_shared "databasus-backend/internal/features/databases/databases/postgresql/shared"
 	users_middleware "databasus-backend/internal/features/users/middleware"
 	users_services "databasus-backend/internal/features/users/services"
 	workspaces_services "databasus-backend/internal/features/workspaces/services"
+	"databasus-backend/internal/util/tools"
 )
 
 type DatabaseController struct {
@@ -21,6 +28,7 @@ type DatabaseController struct {
 
 func (c *DatabaseController) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/databases/create", c.CreateDatabase)
+	router.POST("/databases", c.CreateDatabase)
 	router.POST("/databases/update", c.UpdateDatabase)
 	router.DELETE("/databases/:id", c.DeleteDatabase)
 	router.GET("/databases/:id", c.GetDatabase)
@@ -36,6 +44,134 @@ func (c *DatabaseController) RegisterRoutes(router *gin.RouterGroup) {
 }
 
 func (c *DatabaseController) RegisterPublicRoutes(_ *gin.RouterGroup) {
+}
+
+type DatabaseRequestInput struct {
+	Database
+	Host       string  `json:"host"`
+	Port       int     `json:"port"`
+	DbName     *string `json:"dbName"`
+	DbUsername string  `json:"dbUsername"`
+	DbPassword string  `json:"dbPassword"`
+}
+
+func (in *DatabaseRequestInput) Normalize() {
+	in.normalizeType()
+	in.normalizeFlatFields()
+}
+
+func (in *DatabaseRequestInput) normalizeType() {
+	switch strings.ToUpper(string(in.Type)) {
+	case "POSTGRESQL", "POSTGRES", "POSTGRES_LOGICAL":
+		in.Type = DatabaseTypePostgresLogical
+	case "POSTGRES_PHYSICAL":
+		in.Type = DatabaseTypePostgresPhysical
+	case "MYSQL":
+		in.Type = DatabaseTypeMysql
+	case "MARIADB":
+		in.Type = DatabaseTypeMariadb
+	case "MONGODB", "MONGO":
+		in.Type = DatabaseTypeMongodb
+	}
+}
+
+func (in *DatabaseRequestInput) normalizeFlatFields() {
+	if in.Host == "" && in.DbUsername == "" && in.DbPassword == "" {
+		return
+	}
+
+	switch in.Type {
+	case DatabaseTypePostgresLogical:
+		if in.PostgresqlLogical == nil {
+			port := in.Port
+			if port == 0 {
+				port = 5432
+			}
+			in.PostgresqlLogical = &postgresql_logical.PostgresqlLogicalDatabase{
+				Host:     in.Host,
+				Port:     port,
+				Username: in.DbUsername,
+				Password: in.DbPassword,
+				Database: in.DbName,
+				Version:  tools.PostgresqlVersion16,
+				SslMode:  postgresql_shared.PostgresSslModeDisable,
+			}
+		}
+	case DatabaseTypeMysql:
+		if in.Mysql == nil {
+			port := in.Port
+			if port == 0 {
+				port = 3306
+			}
+			in.Mysql = &mysql.MysqlDatabase{
+				Host:     in.Host,
+				Port:     port,
+				Username: in.DbUsername,
+				Password: in.DbPassword,
+				Database: in.DbName,
+			}
+		}
+	case DatabaseTypeMariadb:
+		if in.Mariadb == nil {
+			port := in.Port
+			if port == 0 {
+				port = 3306
+			}
+			in.Mariadb = &mariadb.MariadbDatabase{
+				Host:     in.Host,
+				Port:     port,
+				Username: in.DbUsername,
+				Password: in.DbPassword,
+				Database: in.DbName,
+			}
+		}
+	case DatabaseTypeMongodb:
+		if in.Mongodb == nil {
+			port := in.Port
+			if port == 0 {
+				port = 27017
+			}
+			in.Mongodb = &mongodb.MongodbDatabase{
+				Host:     in.Host,
+				Port:     port,
+				Username: in.DbUsername,
+				Password: in.DbPassword,
+				Database: in.DbName,
+			}
+		}
+	}
+}
+
+func (c *DatabaseController) resolveEncryptionKey(ctx *gin.Context, workspaceID *uuid.UUID) string {
+	if key := users_middleware.EncryptionKeyFromContext(ctx.Request.Context()); key != "" {
+		return key
+	}
+
+	if headerKey := ctx.GetHeader("X-Encryption-Key"); headerKey != "" {
+		return headerKey
+	}
+
+	if apiKeyVal, exists := ctx.Get("apiKey"); exists {
+		if apiKey, ok := apiKeyVal.(*api_keys.APIKey); ok && apiKey != nil {
+			if decryptedKey, err := api_keys.GetAPIKeyService().GetDecryptedEncryptionKey(ctx.Request.Context(), apiKey); err == nil && decryptedKey != "" {
+				return decryptedKey
+			}
+		}
+	}
+
+	if workspaceID != nil {
+		if c.workspaceService != nil {
+			if wsKey, err := c.workspaceService.GetWorkspaceEncryptionKey(ctx.Request.Context(), *workspaceID); err == nil && wsKey != "" {
+				return wsKey
+			}
+		}
+
+		if wsKey, err := api_keys.GetAPIKeyService().GetWorkspaceEncryptionKey(ctx.Request.Context(), *workspaceID); err == nil && wsKey != "" {
+			return wsKey
+		}
+	}
+
+	return ""
 }
 
 // CreateDatabase
@@ -57,18 +193,26 @@ func (c *DatabaseController) CreateDatabase(ctx *gin.Context) {
 		return
 	}
 
-	var request Database
+	var request DatabaseRequestInput
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	request.Normalize()
 
 	if request.WorkspaceID == nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "workspaceId is required"})
 		return
 	}
 
-	database, err := c.databaseService.CreateDatabase(ctx.Request.Context(), user, *request.WorkspaceID, &request)
+	encKey := c.resolveEncryptionKey(ctx, request.WorkspaceID)
+	if err := DecryptDatabaseSensitiveFields(&request.Database, encKey); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	database, err := c.databaseService.CreateDatabase(ctx.Request.Context(), user, *request.WorkspaceID, &request.Database)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -96,18 +240,26 @@ func (c *DatabaseController) UpdateDatabase(ctx *gin.Context) {
 		return
 	}
 
-	var request Database
+	var request DatabaseRequestInput
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := c.databaseService.UpdateDatabase(ctx.Request.Context(), user, &request); err != nil {
+	request.Normalize()
+
+	encKey := c.resolveEncryptionKey(ctx, request.WorkspaceID)
+	if err := DecryptDatabaseSensitiveFields(&request.Database, encKey); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, request)
+	if err := c.databaseService.UpdateDatabase(ctx.Request.Context(), user, &request.Database); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, request.Database)
 }
 
 // DeleteDatabase
@@ -265,13 +417,21 @@ func (c *DatabaseController) TestDatabaseConnectionDirect(ctx *gin.Context) {
 		return
 	}
 
-	var request Database
+	var request DatabaseRequestInput
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := c.databaseService.TestDatabaseConnectionDirect(ctx.Request.Context(), user, &request); err != nil {
+	request.Normalize()
+
+	encKey := c.resolveEncryptionKey(ctx, request.WorkspaceID)
+	if err := DecryptDatabaseSensitiveFields(&request.Database, encKey); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := c.databaseService.TestDatabaseConnectionDirect(ctx.Request.Context(), user, &request.Database); err != nil {
 		respondConnectionTestError(ctx, err)
 		return
 	}

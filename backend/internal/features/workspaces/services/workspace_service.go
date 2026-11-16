@@ -2,6 +2,8 @@ package workspaces_services
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -19,6 +21,7 @@ import (
 	workspaces_models "databasus-backend/internal/features/workspaces/models"
 	workspaces_repositories "databasus-backend/internal/features/workspaces/repositories"
 	"databasus-backend/internal/storage"
+	"databasus-backend/internal/util/encryption"
 )
 
 type WorkspaceService struct {
@@ -28,6 +31,7 @@ type WorkspaceService struct {
 	auditLogService            *audit_logs.AuditLogService
 	settingsService            *users_services.SettingsService
 	workspaceDeletionListeners []workspaces_interfaces.WorkspaceDeletionListener
+	fieldEncryptor             encryption.FieldEncryptor
 }
 
 func (s *WorkspaceService) AddWorkspaceDeletionListener(
@@ -50,10 +54,22 @@ func (s *WorkspaceService) CreateWorkspace(
 		return nil, workspaces_errors.ErrInsufficientPermissionsToCreateWorkspaces
 	}
 
+	encryptedKey := ""
+	if s.fieldEncryptor != nil {
+		keyBytes := make([]byte, 32)
+		if _, err := rand.Read(keyBytes); err == nil {
+			rawKey := "dbs_enc_" + hex.EncodeToString(keyBytes)
+			if enc, err := s.fieldEncryptor.Encrypt(rawKey); err == nil {
+				encryptedKey = enc
+			}
+		}
+	}
+
 	workspace := &workspaces_models.Workspace{
-		ID:        uuid.New(),
-		Name:      request.Name,
-		CreatedAt: time.Now().UTC(),
+		ID:                     uuid.New(),
+		Name:                   request.Name,
+		EncryptedEncryptionKey: encryptedKey,
+		CreatedAt:              time.Now().UTC(),
 	}
 
 	if err := s.workspaceRepository.CreateWorkspace(workspace); err != nil {
@@ -505,4 +521,20 @@ func (s *WorkspaceService) buildWorkspaceTelemetry(
 		BackupsCount:      totalBackups,
 		StorageConsumedMb: totalMb,
 	}, nil
+}
+
+func (s *WorkspaceService) GetWorkspaceEncryptionKey(
+	ctx context.Context,
+	workspaceID uuid.UUID,
+) (string, error) {
+	workspace, err := s.workspaceRepository.GetWorkspaceByID(workspaceID)
+	if err != nil {
+		return "", err
+	}
+
+	if workspace == nil || workspace.EncryptedEncryptionKey == "" || s.fieldEncryptor == nil {
+		return "", nil
+	}
+
+	return s.fieldEncryptor.Decrypt(workspace.EncryptedEncryptionKey)
 }

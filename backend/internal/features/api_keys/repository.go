@@ -55,6 +55,23 @@ func (r *APIKeyRepository) ListByWorkspace(ctx context.Context, workspaceID uuid
 	return keys, err
 }
 
+func (r *APIKeyRepository) GetFirstActiveByWorkspaceID(ctx context.Context, workspaceID uuid.UUID) (*APIKey, error) {
+	var apiKey APIKey
+
+	err := storage.GetDb().WithContext(ctx).
+		Where("workspace_id = ? AND is_active = ? AND encrypted_encryption_key IS NOT NULL AND encrypted_encryption_key != ''", workspaceID, true).
+		Order("created_at DESC").
+		First(&apiKey).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &apiKey, nil
+}
+
 func (r *APIKeyRepository) ListAll(ctx context.Context) ([]*APIKey, error) {
 	var keys []*APIKey
 	err := storage.GetDb().WithContext(ctx).
