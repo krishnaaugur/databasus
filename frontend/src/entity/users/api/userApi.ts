@@ -176,6 +176,37 @@ export const userApi = {
     );
   },
 
+  async validateInvitation(token: string): Promise<{
+    valid: boolean;
+    email: string;
+    name: string;
+    workspaceId?: string;
+    workspaceName?: string;
+  }> {
+    const requestOptions = new RequestOptions();
+    return apiHelper.fetchGetJson(
+      `${getApplicationServer()}/api/v1/users/invitations/validate?token=${encodeURIComponent(token)}`,
+      requestOptions,
+    );
+  },
+
+  async acceptInvitation(request: {
+    token: string;
+    name: string;
+    password: string;
+  }): Promise<{ user: UserProfile; token: string }> {
+    const requestOptions = new RequestOptions();
+    requestOptions.setBody(JSON.stringify(request));
+    return apiHelper
+      .fetchPostJson(`${getApplicationServer()}/api/v1/users/invitations/accept`, requestOptions)
+      .then((response: unknown) => {
+        const typedResponse = response as { user: UserProfile; token: string };
+        saveAuthorizedData(typedResponse.token, typedResponse.user.id);
+        notifyAuthListeners();
+        return typedResponse;
+      });
+  },
+
   isAuthorized: (): boolean => !!accessTokenHelper.getAccessToken(),
 
   logout: () => {

@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route } from 'react-router';
 import { Routes } from 'react-router';
 
 import { userApi } from '../../entity/users';
+import { AcceptInvitePage } from '../../pages/AcceptInvitePage';
 import { AuthPageComponent } from '../../pages/AuthPageComponent';
 import { OAuthCallbackPage } from '../../pages/OAuthCallbackPage';
 import { OauthStorageComponent } from '../../pages/OauthStorageComponent';
@@ -41,6 +42,7 @@ function AppContent() {
       <AntdApp>
         <BrowserRouter>
           <Routes>
+            <Route path="/accept-invite" element={<AcceptInvitePage />} />
             <Route path="/auth/callback" element={<OAuthCallbackPage />} />
             <Route path="/storages/google-oauth" element={<OauthStorageComponent />} />
             <Route

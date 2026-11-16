@@ -1,5 +1,5 @@
 /* eslint-disable i18next/no-literal-string -- workspace creation dialog */
-import { LoadingOutlined } from '@ant-design/icons';
+import { CopyOutlined, LoadingOutlined } from '@ant-design/icons';
 import { App, Button, Input, Modal } from 'antd';
 import { Spin } from 'antd';
 import { useState } from 'react';
@@ -30,6 +30,7 @@ export const CreateWorkspaceDialogComponent = ({
   const { t } = useTranslation();
   const { message } = App.useApp();
   const [isCreating, setIsCreating] = useState(false);
+  const [createdWorkspace, setCreatedWorkspace] = useState<WorkspaceResponse | null>(null);
   const [workspaceName, setWorkspaceName] = useState(
     workspacesCount === 0 ? t('workspaces.create.defaultName') : '',
   );
@@ -62,15 +63,69 @@ export const CreateWorkspaceDialogComponent = ({
           user.role === UserRole.ADMIN && ownerPhone.trim() ? ownerPhone.trim() : undefined,
       });
 
-      message.success(t('workspaces.create.created'));
-      onWorkspaceCreated(newWorkspace);
-      onClose();
+      if (newWorkspace.invitationLink) {
+        setCreatedWorkspace(newWorkspace);
+      } else {
+        message.success(t('workspaces.create.created'));
+        onWorkspaceCreated(newWorkspace);
+        onClose();
+      }
     } catch (error) {
       message.error(translateApiError(error, t));
     } finally {
       setIsCreating(false);
     }
   };
+
+  if (createdWorkspace?.invitationLink) {
+    return (
+      <Modal
+        title="Workspace Created"
+        open
+        closable={false}
+        footer={[
+          <Button
+            key="done"
+            type="primary"
+            onClick={() => {
+              onWorkspaceCreated(createdWorkspace);
+              onClose();
+            }}
+            className="border-blue-600 bg-blue-600 hover:border-blue-700 hover:bg-blue-700"
+          >
+            Done
+          </Button>,
+        ]}
+      >
+        <div className="py-2">
+          <div className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-xs text-green-800 dark:border-green-800 dark:bg-green-900/30 dark:text-green-200">
+            <strong>Workspace &ldquo;{createdWorkspace.name}&rdquo; created!</strong>
+            <p className="mt-1">
+              An invitation has been dispatched to <strong>{ownerEmail}</strong>. You can also copy
+              the link below to share it directly with the owner to create their password.
+            </p>
+          </div>
+
+          <label className="mb-2 block text-xs font-semibold text-gray-700 dark:text-gray-300">
+            Owner Invitation Link
+          </label>
+          <div className="flex gap-2">
+            <Input value={createdWorkspace.invitationLink} readOnly />
+            <Button
+              type="default"
+              icon={<CopyOutlined />}
+              onClick={() => {
+                navigator.clipboard.writeText(createdWorkspace.invitationLink || '');
+                message.success('Invitation link copied to clipboard!');
+              }}
+            >
+              Copy
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   if (!isAllowedToCreateWorkspaces) {
     return (

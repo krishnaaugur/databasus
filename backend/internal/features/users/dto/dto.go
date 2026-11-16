@@ -176,3 +176,23 @@ type UpdateSettingsRequestDTO struct {
 	IsMemberAllowedToCreateWorkspaces bool `json:"isMemberAllowedToCreateWorkspaces"`
 	IsTwoFactorAuthRequired           bool `json:"isTwoFactorAuthRequired"`
 }
+
+type ValidateInvitationResponseDTO struct {
+	Valid         bool       `json:"valid"`
+	Email         string     `json:"email"`
+	Name          string     `json:"name"`
+	WorkspaceID   *uuid.UUID `json:"workspaceId,omitempty"`
+	WorkspaceName string     `json:"workspaceName,omitempty"`
+}
+
+type AcceptInvitationRequestDTO struct {
+	Token    string `json:"token" binding:"required"`
+	Name     string `json:"name"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+type AcceptInvitationResponseDTO struct {
+	User  *UserProfileResponseDTO `json:"user"`
+	Token string                  `json:"token"`
+}
+

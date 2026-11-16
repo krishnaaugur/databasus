@@ -1,7 +1,7 @@
 import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
 import { Button, Input } from 'antd';
 import { type JSX, useState } from 'react';
-import { Trans, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 
 import {
   CLOUDFLARE_TURNSTILE_SITE_KEY,
@@ -18,13 +18,11 @@ import { GithubOAuthComponent } from './oauth/GithubOAuthComponent';
 import { GoogleOAuthComponent } from './oauth/GoogleOAuthComponent';
 
 interface SignInComponentProps {
-  onSwitchToSignUp?: () => void;
   onSwitchToResetPassword?: () => void;
   onCodeRequired?: (pendingSignIn: PendingSignIn) => void;
 }
 
 export function SignInComponent({
-  onSwitchToSignUp,
   onSwitchToResetPassword,
   onCodeRequired,
 }: SignInComponentProps): JSX.Element {
@@ -160,21 +158,8 @@ export function SignInComponent({
         </div>
       )}
 
-      <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
-        <Trans
-          i18nKey="users.signIn.noAccount"
-          components={{
-            signUpLink: (
-              <button
-                type="button"
-                onClick={onSwitchToSignUp}
-                className="cursor-pointer font-medium text-blue-600 hover:text-blue-700 dark:!text-blue-500"
-              />
-            ),
-          }}
-        />
-        <br />
-        {IS_EMAIL_CONFIGURED && (
+      {IS_EMAIL_CONFIGURED && onSwitchToResetPassword && (
+        <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
           <button
             type="button"
             onClick={onSwitchToResetPassword}
@@ -182,8 +167,8 @@ export function SignInComponent({
           >
             {t('users.signIn.forgotPassword')}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="mb-10" />
     </div>

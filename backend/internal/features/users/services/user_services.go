@@ -2,12 +2,15 @@ package users_services
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -46,6 +49,7 @@ type UserService struct {
 	emailSender             users_interfaces.EmailSender
 	passwordResetRepository *users_repositories.PasswordResetRepository
 	twoFactorRepository     *users_repositories.TwoFactorRepository
+	invitationRepository    *users_repositories.InvitationRepository
 	rateLimiter             ratelimiter.Counter
 	logger                  *slog.Logger
 }
@@ -1213,3 +1217,191 @@ func (s *UserService) fetchGitHubPrimaryEmail(
 
 	return "", errors.New("github account has no accessible email")
 }
+
+func (s *UserService) CreateInvitation(
+	ctx context.Context,
+	userID uuid.UUID,
+	workspaceID *uuid.UUID,
+) (*users_models.UserInvitation, error) {
+	_ = s.invitationRepository.DeleteInvitationsByUserID(userID)
+
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return nil, fmt.Errorf("failed to generate invitation token: %w", err)
+	}
+	token := hex.EncodeToString(bytes)
+
+	invitation := &users_models.UserInvitation{
+		ID:          uuid.New(),
+		UserID:      userID,
+		WorkspaceID: workspaceID,
+		Token:       token,
+		ExpiresAt:   time.Now().UTC().Add(7 * 24 * time.Hour),
+		CreatedAt:   time.Now().UTC(),
+	}
+
+	if err := s.invitationRepository.CreateInvitation(invitation); err != nil {
+		return nil, fmt.Errorf("failed to store invitation: %w", err)
+	}
+
+	return invitation, nil
+}
+
+func (s *UserService) BuildInvitationLink(token string) string {
+	baseURL := strings.TrimRight(config.GetEnv().DatabasusURL, "/")
+	if baseURL == "" {
+		baseURL = strings.TrimRight(os.Getenv("RENDER_EXTERNAL_URL"), "/")
+	}
+	if baseURL == "" {
+		return fmt.Sprintf("/accept-invite?token=%s", token)
+	}
+	return fmt.Sprintf("%s/accept-invite?token=%s", baseURL, token)
+}
+
+func (s *UserService) SendInvitationEmail(
+	ctx context.Context,
+	toEmail string,
+	workspaceName string,
+	role string,
+	inviteLink string,
+) error {
+	subject := fmt.Sprintf("You've been invited to %s on Databasus", workspaceName)
+	body := fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+	<div style="background-color: #f8f9fa; border-radius: 8px; padding: 30px; margin: 20px 0;">
+		<h1 style="color: #0d6efd; margin-top: 0;">Workspace Invitation</h1>
+		<p style="font-size: 16px; margin: 20px 0;">
+			You have been invited to join the <strong>%s</strong> workspace as <strong>%s</strong>.
+		</p>
+		<p style="margin: 25px 0;">
+			<a href="%s" style="display: inline-block; padding: 12px 24px; background-color: #0d6efd; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">
+				Accept Invitation &amp; Create Password
+			</a>
+		</p>
+		<p style="font-size: 13px; color: #6c757d; margin: 20px 0;">
+			Or copy and paste this link in your browser:<br>
+			<a href="%s" style="color: #0d6efd; word-break: break-all;">%s</a>
+		</p>
+		<hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
+		<p style="font-size: 14px; color: #6c757d; margin: 0;">
+			This invitation will expire in 7 days. If you didn't expect this invitation, you can safely ignore this email.
+		</p>
+	</div>
+</body>
+</html>`, workspaceName, role, inviteLink, inviteLink, inviteLink)
+
+	if err := s.emailSender.SendEmail(ctx, toEmail, subject, body); err != nil {
+		s.logger.WarnContext(ctx, "failed to send invitation email", "to_email", toEmail, "error", err)
+		return err
+	}
+	return nil
+}
+
+func (s *UserService) ValidateInvitation(
+	ctx context.Context,
+	token string,
+) (*users_dto.ValidateInvitationResponseDTO, error) {
+	if strings.TrimSpace(token) == "" {
+		return nil, errors.New("invitation token is required")
+	}
+
+	invitation, err := s.invitationRepository.GetValidInvitationByToken(token)
+	if err != nil {
+		return nil, errors.New("invitation is invalid or has expired")
+	}
+
+	user, err := s.userRepository.GetUserByID(ctx, invitation.UserID)
+	if err != nil || user == nil {
+		return nil, errors.New("invited user account not found")
+	}
+
+	var workspaceName string
+	if invitation.WorkspaceID != nil {
+		var ws struct {
+			Name string
+		}
+		if err := storage.GetDb().WithContext(ctx).Table("workspaces").Select("name").Where("id = ?", *invitation.WorkspaceID).Scan(&ws).Error; err == nil {
+			workspaceName = ws.Name
+		}
+	}
+
+	return &users_dto.ValidateInvitationResponseDTO{
+		Valid:         true,
+		Email:         user.Email,
+		Name:          user.Name,
+		WorkspaceID:   invitation.WorkspaceID,
+		WorkspaceName: workspaceName,
+	}, nil
+}
+
+func (s *UserService) AcceptInvitation(
+	ctx context.Context,
+	request *users_dto.AcceptInvitationRequestDTO,
+) (*users_dto.AcceptInvitationResponseDTO, error) {
+	if strings.TrimSpace(request.Token) == "" {
+		return nil, errors.New("invitation token is required")
+	}
+
+	if !isPasswordLongEnough(request.Password) {
+		return nil, errors.New("password must be at least 8 characters")
+	}
+
+	invitation, err := s.invitationRepository.GetValidInvitationByToken(request.Token)
+	if err != nil {
+		return nil, errors.New("invitation is invalid or has expired")
+	}
+
+	user, err := s.userRepository.GetUserByID(ctx, invitation.UserID)
+	if err != nil || user == nil {
+		return nil, errors.New("user account not found")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %w", err)
+	}
+	hashedPasswordStr := string(hashedPassword)
+
+	if err := s.userRepository.UpdateUserPassword(user.ID, hashedPasswordStr); err != nil {
+		return nil, fmt.Errorf("failed to save password: %w", err)
+	}
+
+	if err := s.userRepository.UpdateUserStatus(user.ID, users_enums.UserStatusActive); err != nil {
+		return nil, fmt.Errorf("failed to activate account: %w", err)
+	}
+
+	userName := strings.TrimSpace(request.Name)
+	if userName != "" {
+		_ = s.userRepository.UpdateUserInfo(user.ID, &userName, nil)
+	}
+
+	_ = s.invitationRepository.DeleteInvitation(invitation.ID)
+
+	updatedUser, err := s.userRepository.GetUserByID(ctx, user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch updated user: %w", err)
+	}
+
+	tokenResponse, err := s.GenerateAccessToken(ctx, updatedUser)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
+
+	s.writeAuditLog(ctx, audit_logs_models.AuditEntry{
+		Message:     fmt.Sprintf("User accepted invitation and activated account: %s", updatedUser.Email),
+		UserID:      &updatedUser.ID,
+		WorkspaceID: invitation.WorkspaceID,
+	})
+
+	return &users_dto.AcceptInvitationResponseDTO{
+		User:  s.GetCurrentUserProfile(ctx, updatedUser),
+		Token: tokenResponse.Token,
+	}, nil
+}
+

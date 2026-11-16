@@ -29,6 +29,9 @@ type WorkspaceResponseDTO struct {
 
 	// User's role in this workspace (populated when fetching for specific user)
 	UserRole *users_enums.WorkspaceRole `json:"userRole,omitempty"`
+
+	// Optional invitation link when a new owner is invited
+	InvitationLink *string `json:"invitationLink,omitempty"`
 }
 
 type ListWorkspacesResponseDTO struct {
@@ -42,7 +45,8 @@ type AddMemberRequestDTO struct {
 }
 
 type AddMemberResponseDTO struct {
-	Status AddMemberStatus `json:"status"`
+	Status         AddMemberStatus `json:"status"`
+	InvitationLink *string         `json:"invitationLink,omitempty"`
 }
 
 type ChangeMemberRoleRequestDTO struct {

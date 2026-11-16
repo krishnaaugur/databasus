@@ -34,6 +34,10 @@ func (c *UserController) RegisterRoutes(router *gin.RouterGroup) {
 	router.POST("/users/send-reset-password-code", c.SendResetPasswordCode)
 	router.POST("/users/reset-password", c.ResetPassword)
 
+	// User invitations (no auth required)
+	router.GET("/users/invitations/validate", c.ValidateInvitation)
+	router.POST("/users/invitations/accept", c.AcceptInvitation)
+
 	// OAuth callbacks
 	router.POST("/auth/github/callback", c.HandleGitHubOAuth)
 	router.POST("/auth/google/callback", c.HandleGoogleOAuth)
@@ -446,3 +450,53 @@ func respondToSignInError(ctx *gin.Context, err error) {
 func respondWithCode(ctx *gin.Context, status int, err error, code string) {
 	ctx.JSON(status, gin.H{"error": err.Error(), "code": code})
 }
+
+// ValidateInvitation
+// @Summary Validate an invitation token
+// @Tags users
+// @Produce json
+// @Param token query string true "Invitation token"
+// @Success 200 {object} users_dto.ValidateInvitationResponseDTO
+// @Failure 400
+// @Router /users/invitations/validate [get]
+func (c *UserController) ValidateInvitation(ctx *gin.Context) {
+	token := ctx.Query("token")
+	if token == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invitation token is required"})
+		return
+	}
+
+	response, err := c.userService.ValidateInvitation(ctx.Request.Context(), token)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response)
+}
+
+// AcceptInvitation
+// @Summary Accept invitation and create password
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param request body users_dto.AcceptInvitationRequestDTO true "Accept invitation data"
+// @Success 200 {object} users_dto.AcceptInvitationResponseDTO
+// @Failure 400
+// @Router /users/invitations/accept [post]
+func (c *UserController) AcceptInvitation(ctx *gin.Context) {
+	var request users_dto.AcceptInvitationRequestDTO
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+
+	response, err := c.userService.AcceptInvitation(ctx.Request.Context(), &request)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response)
+}
+

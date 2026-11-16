@@ -18,6 +18,7 @@ var userService = &UserService{
 	email.GetEmailSMTPSender(),
 	users_repositories.GetPasswordResetRepository(),
 	users_repositories.GetTwoFactorRepository(),
+	users_repositories.GetInvitationRepository(),
 	ratelimiter.GetCounter(),
 	logger.GetLogger(),
 }

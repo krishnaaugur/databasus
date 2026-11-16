@@ -1,4 +1,6 @@
+/* eslint-disable i18next/no-literal-string -- workspace membership interface */
 import {
+  CopyOutlined,
   DeleteOutlined,
   LoadingOutlined,
   PlusOutlined,
@@ -65,6 +67,7 @@ export function WorkspaceMembershipComponent({ workspaceResponse, user }: Props)
 
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [invitedEmail, setInvitedEmail] = useState('');
+  const [invitedLink, setInvitedLink] = useState('');
 
   const [changingRoleFor, setChangingRoleFor] = useState<string | null>(null);
   const [isChangingRole, setIsChangingRole] = useState(false);
@@ -171,6 +174,7 @@ export function WorkspaceMembershipComponent({ workspaceResponse, user }: Props)
         loadMembers();
       } else if (response.status === AddMemberStatusEnum.INVITED) {
         setInvitedEmail(emailToRemember);
+        setInvitedLink(response.invitationLink || '');
         setIsInviteDialogOpen(true);
         loadMembers();
       }
@@ -640,15 +644,35 @@ export function WorkspaceMembershipComponent({ workspaceResponse, user }: Props)
         }}
       >
         <div className="py-4">
-          <div className="flex items-center">
-            <UserAddOutlined className="mr-3 text-2xl text-blue-600 dark:text-blue-400" />
-            <div>
+          <div className="flex items-start">
+            <UserAddOutlined className="mt-1 mr-3 text-2xl text-blue-600 dark:text-blue-400" />
+            <div className="flex-1">
               <div className="font-medium text-gray-900 dark:text-white">
                 {t('workspaces.members.invited.sentTo', { email: invitedEmail })}
               </div>
               <div className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                 {t('workspaces.members.invited.description')}
               </div>
+              {invitedLink && (
+                <div className="mt-3">
+                  <div className="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Invitation Link
+                  </div>
+                  <div className="flex gap-2">
+                    <Input value={invitedLink} readOnly size="small" />
+                    <Button
+                      size="small"
+                      icon={<CopyOutlined />}
+                      onClick={() => {
+                        navigator.clipboard.writeText(invitedLink);
+                        message.success('Invitation link copied to clipboard!');
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -62,6 +62,7 @@ func (s *WorkspaceService) CreateWorkspace(
 
 	var ownerUser *users_models.User
 	var userRole *users_enums.WorkspaceRole
+	var invitationLink *string
 
 	if creator.Role == users_enums.UserRoleAdmin {
 		if request.OwnerEmail == nil || *request.OwnerEmail == "" {
@@ -74,6 +75,15 @@ func (s *WorkspaceService) CreateWorkspace(
 		}
 		ownerUser = tenantUser
 		userRole = nil
+
+		if !ownerUser.HasPassword() || ownerUser.Status == users_enums.UserStatusInvited {
+			invitation, err := s.userService.CreateInvitation(ctx, ownerUser.ID, &workspace.ID)
+			if err == nil {
+				link := s.userService.BuildInvitationLink(invitation.Token)
+				invitationLink = &link
+				_ = s.userService.SendInvitationEmail(ctx, ownerUser.Email, workspace.Name, "Owner", link)
+			}
+		}
 	} else {
 		ownerUser = creator
 		ownerRole := users_enums.WorkspaceRoleOwner
@@ -98,10 +108,11 @@ func (s *WorkspaceService) CreateWorkspace(
 	})
 
 	return &workspaces_dto.WorkspaceResponseDTO{
-		ID:        workspace.ID,
-		Name:      workspace.Name,
-		CreatedAt: workspace.CreatedAt,
-		UserRole:  userRole,
+		ID:             workspace.ID,
+		Name:           workspace.Name,
+		CreatedAt:      workspace.CreatedAt,
+		UserRole:       userRole,
+		InvitationLink: invitationLink,
 	}, nil
 }
 

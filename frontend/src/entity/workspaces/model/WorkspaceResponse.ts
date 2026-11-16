@@ -5,4 +5,5 @@ export interface WorkspaceResponse {
   name: string;
   createdAt: Date;
   userRole?: WorkspaceRole;
+  invitationLink?: string;
 }

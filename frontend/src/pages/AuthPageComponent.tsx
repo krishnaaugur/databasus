@@ -20,7 +20,7 @@ export function AuthPageComponent() {
   const [isAnyUserExist, setIsAnyUserExist] = useState(true);
   const [authMode, setAuthMode] = useState<
     'signIn' | 'signUp' | 'requestReset' | 'resetPassword' | 'signInCode'
-  >('signUp');
+  >('signIn');
   const [resetEmail, setResetEmail] = useState('');
   const [pendingSignIn, setPendingSignIn] = useState<PendingSignIn | undefined>(undefined);
   const [isLoading, setLoading] = useState(true);
@@ -38,6 +38,7 @@ export function AuthPageComponent() {
       .isAnyUserExists()
       .then((isExist) => {
         setIsAnyUserExist(isExist);
+        setAuthMode(isExist ? 'signIn' : 'signUp');
         setLoading(false);
       })
       .catch((e) => {
@@ -58,14 +59,10 @@ export function AuthPageComponent() {
             <AuthNavbarComponent />
 
             <div className="mt-10 flex justify-center sm:mt-[10vh]">
-              {authMode === 'signUp' ? (
-                <SignUpComponent
-                  onSwitchToSignIn={isAnyUserExist ? () => setAuthMode('signIn') : undefined}
-                  isClaimingInstance={!isAnyUserExist}
-                />
+              {authMode === 'signUp' && !isAnyUserExist ? (
+                <SignUpComponent isClaimingInstance={true} />
               ) : authMode === 'signIn' ? (
                 <SignInComponent
-                  onSwitchToSignUp={() => setAuthMode('signUp')}
                   onSwitchToResetPassword={() => setAuthMode('requestReset')}
                   onCodeRequired={(newPendingSignIn) => {
                     setPendingSignIn(newPendingSignIn);
