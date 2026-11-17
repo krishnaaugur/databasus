@@ -51,10 +51,10 @@ func Test_GetGlobalAuditLogs_WithDifferentUserRoles_EnforcesPermissionsCorrectly
 	test_utils.MakeGetRequestAndUnmarshal(t, router,
 		"/api/v1/audit-logs/global?limit=100", "Bearer "+adminUser.Token, http.StatusOK, &response)
 
-	// Verify our specific test logs are present
+	// Verify only instance-level logs are present (workspace logs are filtered out)
 	messages := extractMessages(response.AuditLogs)
 	assert.Contains(t, messages, userLogMessage)
-	assert.Contains(t, messages, workspaceLogMessage)
+	assert.NotContains(t, messages, workspaceLogMessage)
 	assert.Contains(t, messages, standaloneLogMessage)
 
 	// Test MEMBER cannot access global logs

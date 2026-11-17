@@ -41,12 +41,13 @@ func (r *AuditLogRepository) GetGlobal(
 			w.name as workspace_name
 		FROM audit_logs al
 		LEFT JOIN users u ON al.user_id = u.id
-		LEFT JOIN workspaces w ON al.workspace_id = w.id`
+		LEFT JOIN workspaces w ON al.workspace_id = w.id
+		WHERE al.workspace_id IS NULL`
 
 	args := []any{}
 
 	if beforeDate != nil {
-		sql += " WHERE al.created_at < ?"
+		sql += " AND al.created_at < ?"
 		args = append(args, *beforeDate)
 	}
 
@@ -136,7 +137,7 @@ func (r *AuditLogRepository) GetByWorkspace(
 
 func (r *AuditLogRepository) CountGlobal(ctx context.Context, beforeDate *time.Time) (int64, error) {
 	var count int64
-	query := storage.GetDb().WithContext(ctx).Model(&AuditLog{})
+	query := storage.GetDb().WithContext(ctx).Model(&AuditLog{}).Where("workspace_id IS NULL")
 
 	if beforeDate != nil {
 		query = query.Where("created_at < ?", *beforeDate)

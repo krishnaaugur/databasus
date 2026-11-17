@@ -1199,8 +1199,8 @@ func Test_CancelBackup_InProgressBackup_SuccessfullyCancelled(t *testing.T) {
 	assert.NoError(t, err)
 
 	auditLogService := audit_logs.GetAuditLogService()
-	auditLogs, err := auditLogService.GetGlobalAuditLogs(t.Context(),
-		adminUser,
+	auditLogs, err := auditLogService.GetWorkspaceAuditLogs(t.Context(),
+		workspace.ID,
 		&audit_logs.GetAuditLogsRequest{Limit: 100, Offset: 0},
 	)
 	assert.NoError(t, err)

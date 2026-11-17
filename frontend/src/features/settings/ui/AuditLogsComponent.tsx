@@ -134,23 +134,6 @@ export function AuditLogsComponent({ scrollContainerRef: externalScrollRef }: Pr
       ),
     },
     {
-      title: t('auditLogs.columns.workspace'),
-      dataIndex: 'workspaceName',
-      key: 'workspaceName',
-      width: 200,
-      render: (workspaceId: string | undefined) => (
-        <span
-          className={`inline-block rounded-full px-1.5 py-0.5 text-xs font-medium ${
-            workspaceId
-              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-          }`}
-        >
-          {workspaceId || '-'}
-        </span>
-      ),
-    },
-    {
       title: t('auditLogs.columns.created'),
       dataIndex: 'createdAt',
       key: 'createdAt',
@@ -202,13 +185,6 @@ export function AuditLogsComponent({ scrollContainerRef: externalScrollRef }: Pr
           </div>
         </div>
         <div className="mt-2 text-sm text-gray-900 dark:text-gray-100">{log.message}</div>
-        {log.workspaceName && (
-          <div className="mt-2">
-            <span className="inline-block rounded-full bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-              {log.workspaceName}
-            </span>
-          </div>
-        )}
       </div>
     );
   };
