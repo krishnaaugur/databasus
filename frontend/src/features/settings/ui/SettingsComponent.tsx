@@ -121,80 +121,26 @@ export function SettingsComponent({ contentHeight }: Props) {
             ) : (
               <div className="max-w-lg text-sm">
                 <div className="space-y-6">
-                  {/* External Registrations Setting */}
-                  <div className="flex items-start justify-between border-b border-gray-200 pb-4 dark:border-gray-700">
-                    <div className="flex-1 pr-20">
-                      <div className="font-medium text-gray-900 dark:text-white">
-                        {t('settings.externalRegistrations.title')}
-                      </div>
-                      <div className="mt-1 text-gray-500 dark:text-gray-400">
-                        {t('settings.externalRegistrations.description')}
-                      </div>
-                    </div>
-
-                    <div className="ml-4">
-                      <Switch
-                        checked={formSettings.isAllowExternalRegistrations}
-                        onChange={(checked) =>
-                          handleSettingChange('isAllowExternalRegistrations', checked)
-                        }
-                        style={{
-                          backgroundColor: formSettings.isAllowExternalRegistrations
-                            ? '#155dfc'
-                            : undefined,
-                        }}
-                      />
-                    </div>
-                  </div>
-
                   {/* Member Invitations Setting */}
-                  {!formSettings.isAllowExternalRegistrations && (
-                    <div className="flex items-start justify-between border-b border-gray-200 pb-4 dark:border-gray-700">
-                      <div className="flex-1 pr-20">
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {t('settings.memberInvitations.title')}
-                        </div>
-
-                        <div className="mt-1 text-gray-500 dark:text-gray-400">
-                          {t('settings.memberInvitations.description')}
-                        </div>
-                      </div>
-
-                      <div className="ml-4">
-                        <Switch
-                          checked={formSettings.isAllowMemberInvitations}
-                          onChange={(checked) =>
-                            handleSettingChange('isAllowMemberInvitations', checked)
-                          }
-                          style={{
-                            backgroundColor: formSettings.isAllowMemberInvitations
-                              ? '#155dfc'
-                              : undefined,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Member Workspace Creation Setting */}
                   <div className="flex items-start justify-between border-b border-gray-200 pb-4 dark:border-gray-700">
                     <div className="flex-1 pr-20">
                       <div className="font-medium text-gray-900 dark:text-white">
-                        {t('settings.memberWorkspaceCreation.title')}
+                        {t('settings.memberInvitations.title')}
                       </div>
 
                       <div className="mt-1 text-gray-500 dark:text-gray-400">
-                        {t('settings.memberWorkspaceCreation.description')}
+                        {t('settings.memberInvitations.description')}
                       </div>
                     </div>
+
                     <div className="ml-4">
                       <Switch
-                        checked={formSettings.isMemberAllowedToCreateWorkspaces}
+                        checked={formSettings.isAllowMemberInvitations}
                         onChange={(checked) =>
-                          handleSettingChange('isMemberAllowedToCreateWorkspaces', checked)
+                          handleSettingChange('isAllowMemberInvitations', checked)
                         }
                         style={{
-                          backgroundColor: formSettings.isMemberAllowedToCreateWorkspaces
+                          backgroundColor: formSettings.isAllowMemberInvitations
                             ? '#155dfc'
                             : undefined,
                         }}
