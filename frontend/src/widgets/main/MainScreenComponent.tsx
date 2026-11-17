@@ -37,7 +37,8 @@ import { useIsMobile, useIsNewGitHubVersionAvailable, useScreenHeight } from '..
 import { getWebsitePageUrl, translateApiError, useLocale } from '../../shared/i18n';
 import { ThemeToggleComponent } from '../../shared/ui';
 import { getDiskUsageValues } from './getDiskUsageValues';
-import { type MainTab, SidebarComponent, type SidebarTab } from './SidebarComponent';
+import { getMainSidebarTabs } from './getMainSidebarTabs';
+import { type MainTab, SidebarComponent } from './SidebarComponent';
 import { WorkspaceSelectionComponent } from './WorkspaceSelectionComponent';
 
 export const MainScreenComponent = () => {
@@ -141,7 +142,9 @@ export const MainScreenComponent = () => {
       const workspacesResponse = await workspaceApi.getWorkspaces();
       setWorkspaces(workspacesResponse.workspaces);
       setSelectedWorkspace(newWorkspace);
-      setSelectedTab('databases');
+      if (!isSuperAdmin) {
+        setSelectedTab('databases');
+      }
     } catch (e) {
       message.error(translateApiError(e, t));
     }
@@ -162,108 +165,12 @@ export const MainScreenComponent = () => {
     globalSettings?.isMemberAllowedToCreateWorkspaces,
   );
 
-  const tabs: SidebarTab[] = [
-    {
-      text: isSuperAdmin ? 'Platform Dashboard' : 'Dashboard',
-      name: isSuperAdmin ? 'admin-dashboard' : 'dashboard',
-      icon: '/icons/menu/dashboard-gray.svg',
-      selectedIcon: '/icons/menu/dashboard-white.svg',
-      onClick: () => setSelectedTab(isSuperAdmin ? 'admin-dashboard' : 'dashboard'),
-      isAdminOnly: false,
-      marginTop: '0px',
-      isVisible: isSuperAdmin || !!selectedWorkspace,
-    },
-    {
-      text: 'Tenants',
-      name: 'tenants',
-      icon: '/icons/menu/tenants-gray.svg',
-      selectedIcon: '/icons/menu/tenants-white.svg',
-      onClick: () => setSelectedTab('tenants'),
-      isAdminOnly: true,
-      marginTop: '0px',
-      isVisible: isSuperAdmin,
-    },
-    {
-      text: t('app.navigation.databases'),
-      name: 'databases',
-      icon: '/icons/menu/database-gray.svg',
-      selectedIcon: '/icons/menu/database-white.svg',
-      onClick: () => setSelectedTab('databases'),
-      isAdminOnly: false,
-      marginTop: '0px',
-      isVisible: true,
-    },
-    {
-      text: t('app.navigation.apiDocs', 'API & Integration'),
-      name: 'api-docs',
-      icon: '/icons/menu/api-gray.svg',
-      selectedIcon: '/icons/menu/api-white.svg',
-      onClick: () => setSelectedTab('api-docs'),
-      isAdminOnly: false,
-      marginTop: '0px',
-      isVisible: !!selectedWorkspace,
-    },
-    {
-      text: t('app.navigation.storages'),
-      name: 'storages',
-      icon: '/icons/menu/storage-gray.svg',
-      selectedIcon: '/icons/menu/storage-white.svg',
-      onClick: () => setSelectedTab('storages'),
-      isAdminOnly: false,
-      marginTop: '0px',
-      isVisible: !!selectedWorkspace,
-    },
-    {
-      text: t('app.navigation.notifiers'),
-      name: 'notifiers',
-      icon: '/icons/menu/notifier-gray.svg',
-      selectedIcon: '/icons/menu/notifier-white.svg',
-      onClick: () => setSelectedTab('notifiers'),
-      isAdminOnly: false,
-      marginTop: '0px',
-      isVisible: !!selectedWorkspace,
-    },
-    {
-      text: t('app.navigation.workspaceSettings'),
-      name: 'settings',
-      icon: '/icons/menu/workspace-settings-gray.svg',
-      selectedIcon: '/icons/menu/workspace-settings-white.svg',
-      onClick: () => setSelectedTab('settings'),
-      isAdminOnly: false,
-      marginTop: '0px',
-      isVisible: !!selectedWorkspace,
-    },
-    {
-      text: t('app.navigation.profile'),
-      name: 'profile',
-      icon: '/icons/menu/profile-gray.svg',
-      selectedIcon: '/icons/menu/profile-white.svg',
-      onClick: () => setSelectedTab('profile'),
-      isAdminOnly: false,
-      marginTop: '25px',
-      isVisible: true,
-    },
-    {
-      text: t('app.navigation.databasusSettings'),
-      name: 'databasus-settings',
-      icon: '/icons/menu/global-settings-gray.svg',
-      selectedIcon: '/icons/menu/global-settings-white.svg',
-      onClick: () => setSelectedTab('databasus-settings'),
-      isAdminOnly: true,
-      marginTop: '0px',
-      isVisible: true,
-    },
-    {
-      text: t('app.navigation.users'),
-      name: 'users',
-      icon: '/icons/menu/user-card-gray.svg',
-      selectedIcon: '/icons/menu/user-card-white.svg',
-      onClick: () => setSelectedTab('users'),
-      isAdminOnly: true,
-      marginTop: '0px',
-      isVisible: true,
-    },
-  ];
+  const tabs = getMainSidebarTabs({
+    isSuperAdmin,
+    hasSelectedWorkspace: Boolean(selectedWorkspace),
+    onSelectTab: (tab) => setSelectedTab(tab),
+    t,
+  });
 
   return (
     <div style={{ height: screenHeight }} className="bg-[#f5f5f5] p-2 md:p-3 dark:bg-gray-900">
