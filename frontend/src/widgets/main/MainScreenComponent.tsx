@@ -122,14 +122,13 @@ export const MainScreenComponent = () => {
 
   useEffect(() => {
     if (user?.role === UserRole.ADMIN) {
-      const tenantTabs: MainTab[] = [
+      const privateTenantResourceTabs: MainTab[] = [
         'databases',
         'storages',
         'notifiers',
-        'settings',
         'api-docs',
       ];
-      if (tenantTabs.includes(selectedTab) && !selectedWorkspace?.userRole) {
+      if (privateTenantResourceTabs.includes(selectedTab) && !selectedWorkspace?.userRole) {
         setSelectedTab('admin-dashboard');
       }
     }
