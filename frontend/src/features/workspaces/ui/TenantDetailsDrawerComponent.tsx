@@ -5,14 +5,12 @@ import {
   DatabaseOutlined,
   HddOutlined,
   HistoryOutlined,
-  LoginOutlined,
   SafetyCertificateOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
 import {
   App,
   Badge,
-  Button,
   Card,
   Descriptions,
   Drawer,
@@ -44,7 +42,6 @@ interface Props {
   workspace: WorkspaceResponse | null;
   telemetry?: WorkspaceTelemetry;
   onClose: () => void;
-  onSelectWorkspace: (workspace: WorkspaceResponse) => void;
 }
 
 export function TenantDetailsDrawerComponent({
@@ -52,7 +49,6 @@ export function TenantDetailsDrawerComponent({
   workspace,
   telemetry,
   onClose,
-  onSelectWorkspace,
 }: Props) {
   const { message } = App.useApp();
   const [members, setMembers] = useState<WorkspaceMemberResponse[]>([]);
@@ -143,18 +139,6 @@ export function TenantDetailsDrawerComponent({
       width={640}
       open={open}
       onClose={onClose}
-      extra={
-        <Button
-          type="primary"
-          icon={<LoginOutlined />}
-          onClick={() => {
-            onSelectWorkspace(workspace);
-            onClose();
-          }}
-        >
-          Open Workspace
-        </Button>
-      }
     >
       <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -162,9 +146,6 @@ export function TenantDetailsDrawerComponent({
             <Title level={4} className="!mb-0 text-gray-900 dark:text-white">
               {workspace.name}
             </Title>
-            <Text type="secondary" className="text-xs">
-              ID: {workspace.id}
-            </Text>
           </div>
           <Badge
             status="processing"
@@ -223,10 +204,12 @@ export function TenantDetailsDrawerComponent({
                     <Descriptions.Item label="Owner">
                       {ownerUser ? (
                         <Space direction="vertical" size={0}>
-                          <Text strong>{ownerUser.name}</Text>
-                          <Text type="secondary" className="text-xs">
-                            {ownerUser.email}
-                          </Text>
+                          <Text strong>{ownerUser.name || ownerUser.email}</Text>
+                          {ownerUser.name && (
+                            <Text type="secondary" className="text-xs">
+                              {ownerUser.email}
+                            </Text>
+                          )}
                         </Space>
                       ) : (
                         <Text type="secondary">Not assigned</Text>

@@ -80,7 +80,6 @@ export function TenantDashboardComponent({
           <DatabaseOutlined className="text-blue-500" />
           <div>
             <div className="font-medium text-gray-800 dark:text-gray-200">{record.name}</div>
-            <div className="text-[11px] text-gray-500">ID: {record.id.slice(0, 8)}...</div>
           </div>
         </div>
       ),

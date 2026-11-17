@@ -4,7 +4,6 @@ import {
   DatabaseOutlined,
   EyeOutlined,
   HistoryOutlined,
-  LoginOutlined,
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
@@ -22,6 +21,7 @@ import {
 } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 
+import { WorkspaceRole } from '../../../entity/users';
 import {
   type WorkspaceResponse,
   type WorkspaceTelemetry,
@@ -35,7 +35,6 @@ interface Props {
   workspaces: WorkspaceResponse[];
   contentHeight: number;
   onCreateTenant: () => void;
-  onSelectWorkspace: (workspace: WorkspaceResponse) => void;
   onRefreshWorkspaces: () => Promise<void>;
 }
 
@@ -43,7 +42,6 @@ export function TenantsComponent({
   workspaces,
   contentHeight,
   onCreateTenant,
-  onSelectWorkspace,
   onRefreshWorkspaces,
 }: Props) {
   const { message } = App.useApp();
@@ -83,7 +81,9 @@ export function TenantsComponent({
     const q = searchQuery.toLowerCase();
     return workspaces.filter((w) => {
       const telemetry = telemetries[w.id];
-      const owner = telemetry?.users.find((u) => u.role === 'OWNER');
+      const owner = telemetry?.users.find(
+        (u) => u.role === WorkspaceRole.OWNER || u.role === 'OWNER',
+      );
       return (
         w.name.toLowerCase().includes(q) ||
         (owner && (owner.email.toLowerCase().includes(q) || owner.name.toLowerCase().includes(q)))
@@ -102,9 +102,6 @@ export function TenantsComponent({
           </div>
           <div>
             <div className="font-semibold text-gray-900 dark:text-gray-100">{record.name}</div>
-            <div className="text-xs text-gray-500">
-              ID: {record.id.slice(0, 8)}...
-            </div>
           </div>
         </div>
       ),
@@ -114,14 +111,18 @@ export function TenantsComponent({
       key: 'owner',
       render: (_: any, record: WorkspaceResponse) => {
         const telemetry = telemetries[record.id];
-        const owner = telemetry?.users.find((u) => u.role === 'OWNER');
+        const owner = telemetry?.users.find(
+          (u) => u.role === WorkspaceRole.OWNER || u.role === 'OWNER',
+        );
         if (!owner) {
           return <Text type="secondary" className="text-xs">No owner</Text>;
         }
         return (
           <div>
-            <div className="font-medium text-gray-800 dark:text-gray-200">{owner.name}</div>
-            <div className="text-xs text-gray-500">{owner.email}</div>
+            <div className="font-medium text-gray-800 dark:text-gray-200">
+              {owner.name || owner.email}
+            </div>
+            {owner.name && <div className="text-xs text-gray-500">{owner.email}</div>}
           </div>
         );
       },
@@ -194,28 +195,15 @@ export function TenantsComponent({
       title: 'Actions',
       key: 'actions',
       render: (_: any, record: WorkspaceResponse) => (
-        <Space size="small">
-          <Tooltip title="View Tenant Details">
-            <Button
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => setSelectedTenantForDetails(record)}
-            >
-              Details
-            </Button>
-          </Tooltip>
-          <Tooltip title="Switch to Tenant Workspace">
-            <Button
-              size="small"
-              type="primary"
-              ghost
-              icon={<LoginOutlined />}
-              onClick={() => onSelectWorkspace(record)}
-            >
-              Open
-            </Button>
-          </Tooltip>
-        </Space>
+        <Tooltip title="View Tenant Details">
+          <Button
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => setSelectedTenantForDetails(record)}
+          >
+            Details
+          </Button>
+        </Tooltip>
       ),
     },
   ];
@@ -280,7 +268,6 @@ export function TenantsComponent({
           selectedTenantForDetails ? telemetries[selectedTenantForDetails.id] : undefined
         }
         onClose={() => setSelectedTenantForDetails(null)}
-        onSelectWorkspace={onSelectWorkspace}
       />
     </div>
   );

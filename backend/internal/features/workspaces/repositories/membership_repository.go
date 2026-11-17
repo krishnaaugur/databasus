@@ -112,15 +112,10 @@ func (r *MembershipRepository) GetWorkspaceOwner(
 
 func (r *MembershipRepository) GetWorkspacesWithRolesByUserID(
 	ctx context.Context,
-	userRole users_enums.UserRole,
+	_ users_enums.UserRole,
 	userID uuid.UUID,
 ) ([]workspaces_dto.WorkspaceResponseDTO, error) {
 	results := make([]workspaces_dto.WorkspaceResponseDTO, 0)
-
-	if userRole == users_enums.UserRoleAdmin {
-		err := storage.GetDb().WithContext(ctx).Table("workspaces").Order("name ASC").Scan(&results).Error
-		return results, err
-	}
 
 	err := storage.GetDb().WithContext(ctx).
 		Table("workspaces w").

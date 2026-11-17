@@ -258,10 +258,6 @@ func (s *WorkspaceService) CanUserAccessWorkspace(
 	workspaceID uuid.UUID,
 	user *users_models.User,
 ) (bool, *users_enums.WorkspaceRole, error) {
-	if user.Role == users_enums.UserRoleAdmin {
-		return true, nil, nil
-	}
-
 	role, err := s.membershipRepository.GetUserWorkspaceRole(ctx, workspaceID, user.ID)
 	if err != nil {
 		return false, nil, nil

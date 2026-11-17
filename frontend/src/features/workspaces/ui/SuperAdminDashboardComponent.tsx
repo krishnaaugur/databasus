@@ -27,7 +27,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 
 import type { DiskUsage } from '../../../entity/disk';
-import type { UserProfile } from '../../../entity/users';
+import { type UserProfile, WorkspaceRole } from '../../../entity/users';
 import {
   type WorkspaceResponse,
   type WorkspaceTelemetry,
@@ -44,7 +44,6 @@ interface Props {
   contentHeight: number;
   onCreateTenant: () => void;
   onNavigateToTab: (tab: string) => void;
-  onSelectWorkspace: (workspace: WorkspaceResponse) => void;
   onRefreshWorkspaces: () => Promise<void>;
 }
 
@@ -55,7 +54,6 @@ export function SuperAdminDashboardComponent({
   contentHeight,
   onCreateTenant,
   onNavigateToTab,
-  onSelectWorkspace,
   onRefreshWorkspaces,
 }: Props) {
   const { message } = App.useApp();
@@ -127,23 +125,22 @@ export function SuperAdminDashboardComponent({
       title: 'Tenant',
       key: 'name',
       render: (_: any, record: WorkspaceResponse) => (
-        <div>
-          <div className="font-semibold text-gray-900 dark:text-gray-100">{record.name}</div>
-          <div className="text-xs text-gray-500">ID: {record.id.slice(0, 8)}...</div>
-        </div>
+        <div className="font-semibold text-gray-900 dark:text-gray-100">{record.name}</div>
       ),
     },
     {
       title: 'Owner',
       key: 'owner',
       render: (_: any, record: WorkspaceResponse) => {
-        const owner = telemetries[record.id]?.users.find((u) => u.role === 'OWNER');
+        const owner = telemetries[record.id]?.users.find(
+          (u) => u.role === WorkspaceRole.OWNER || u.role === 'OWNER',
+        );
         return (
           <div className="text-xs">
             <span className="font-medium text-gray-800 dark:text-gray-200">
-              {owner?.name || 'Unassigned'}
+              {owner?.name || owner?.email || 'Unassigned'}
             </span>
-            {owner && <span className="block text-gray-500">{owner.email}</span>}
+            {owner && owner.name && <span className="block text-gray-500">{owner.email}</span>}
           </div>
         );
       },
@@ -178,22 +175,12 @@ export function SuperAdminDashboardComponent({
       title: 'Action',
       key: 'action',
       render: (_: any, record: WorkspaceResponse) => (
-        <Space size="small">
-          <Button
-            size="small"
-            onClick={() => setSelectedTenantForDetails(record)}
-          >
-            Details
-          </Button>
-          <Button
-            size="small"
-            type="primary"
-            ghost
-            onClick={() => onSelectWorkspace(record)}
-          >
-            Open
-          </Button>
-        </Space>
+        <Button
+          size="small"
+          onClick={() => setSelectedTenantForDetails(record)}
+        >
+          Details
+        </Button>
       ),
     },
   ];
@@ -360,7 +347,6 @@ export function SuperAdminDashboardComponent({
           selectedTenantForDetails ? telemetries[selectedTenantForDetails.id] : undefined
         }
         onClose={() => setSelectedTenantForDetails(null)}
-        onSelectWorkspace={onSelectWorkspace}
       />
     </div>
   );

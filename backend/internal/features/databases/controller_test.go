@@ -541,11 +541,11 @@ func Test_GetDatabasesByWorkspace_PermissionsEnforced(t *testing.T) {
 			expectedStatusCode: http.StatusBadRequest,
 		},
 		{
-			name:               "global admin can list databases",
+			name:               "global admin without membership cannot list databases",
 			isMember:           false,
 			isGlobalAdmin:      true,
-			expectSuccess:      true,
-			expectedStatusCode: http.StatusOK,
+			expectSuccess:      false,
+			expectedStatusCode: http.StatusBadRequest,
 		},
 	}
 

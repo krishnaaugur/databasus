@@ -16,7 +16,6 @@ import {
 } from '../../entity/users';
 import {
   type WorkspaceResponse,
-  type WorkspaceTelemetry,
   workspaceApi,
 } from '../../entity/workspaces';
 import { ApiDocsComponent } from '../../features/api-docs';
@@ -59,7 +58,6 @@ export const MainScreenComponent = () => {
   const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceResponse | undefined>(
     undefined,
   );
-  const [telemetry, setTelemetry] = useState<WorkspaceTelemetry | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] = useState(false);
@@ -112,17 +110,6 @@ export const MainScreenComponent = () => {
   }, [selectedWorkspace]);
 
   useEffect(() => {
-    if (user?.role === UserRole.ADMIN && selectedWorkspace?.id) {
-      workspaceApi
-        .getWorkspaceTelemetry(selectedWorkspace.id)
-        .then((data) => setTelemetry(data))
-        .catch(() => setTelemetry(null));
-    } else {
-      setTelemetry(null);
-    }
-  }, [user?.role, selectedWorkspace?.id]);
-
-  useEffect(() => {
     if (user && !hasInitializedTab) {
       setHasInitializedTab(true);
       if (user.role === UserRole.ADMIN) {
@@ -132,6 +119,21 @@ export const MainScreenComponent = () => {
       }
     }
   }, [user, hasInitializedTab]);
+
+  useEffect(() => {
+    if (user?.role === UserRole.ADMIN) {
+      const tenantTabs: MainTab[] = [
+        'databases',
+        'storages',
+        'notifiers',
+        'settings',
+        'api-docs',
+      ];
+      if (tenantTabs.includes(selectedTab) && !selectedWorkspace?.userRole) {
+        setSelectedTab('admin-dashboard');
+      }
+    }
+  }, [user?.role, selectedTab, selectedWorkspace?.userRole]);
 
   const handleCreateWorkspace = () => {
     setShowCreateWorkspaceDialog(true);
@@ -248,10 +250,6 @@ export const MainScreenComponent = () => {
                 contentHeight={contentHeight}
                 onCreateTenant={handleCreateWorkspace}
                 onNavigateToTab={(tab: string) => setSelectedTab(tab as MainTab)}
-                onSelectWorkspace={(ws) => {
-                  setSelectedWorkspace(ws);
-                  setSelectedTab('databases');
-                }}
                 onRefreshWorkspaces={async () => {
                   const res = await workspaceApi.getWorkspaces();
                   setWorkspaces(res.workspaces);
@@ -266,10 +264,6 @@ export const MainScreenComponent = () => {
                 workspaces={workspaces}
                 contentHeight={contentHeight}
                 onCreateTenant={handleCreateWorkspace}
-                onSelectWorkspace={(ws) => {
-                  setSelectedWorkspace(ws);
-                  setSelectedTab('databases');
-                }}
                 onRefreshWorkspaces={async () => {
                   const res = await workspaceApi.getWorkspaces();
                   setWorkspaces(res.workspaces);
@@ -343,44 +337,6 @@ export const MainScreenComponent = () => {
               ) : (
                 <>
                   <div className="flex-1 md:pl-1">
-                    {user?.role === UserRole.ADMIN && telemetry && (
-                      <div className="mb-3 rounded border border-blue-200 bg-blue-50/70 p-2.5 text-xs text-blue-900 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-semibold">
-                            {/* eslint-disable-next-line i18next/no-literal-string -- admin telemetry header */}
-                            {'🛡️ Super Admin Auditing Mode • Zero-Knowledge SaaS Policy'}
-                          </span>
-                          <div className="flex items-center gap-3">
-                            <span>
-                              {/* eslint-disable-next-line i18next/no-literal-string -- telemetry database label */}
-                              {'Databases: '}
-                              <strong>{telemetry.databasesCount}</strong>
-                            </span>
-                            <span>
-                              {/* eslint-disable-next-line i18next/no-literal-string -- telemetry backups label */}
-                              {'Backups: '}
-                              <strong>{telemetry.backupsCount}</strong>
-                            </span>
-                            <span>
-                              {/* eslint-disable-next-line i18next/no-literal-string -- telemetry storage label */}
-                              {'Storage: '}
-                              <strong>{telemetry.storageConsumedMb.toFixed(2)} MB</strong>
-                            </span>
-                            <span>
-                              {/* eslint-disable-next-line i18next/no-literal-string -- telemetry tenant users label */}
-                              {'Tenant Users: '}
-                              <strong>{telemetry.users.length}</strong>
-                            </span>
-                          </div>
-                        </div>
-                        <p className="mt-1 text-[11px] opacity-80">
-                          {/* eslint-disable-next-line i18next/no-literal-string -- zero-knowledge policy text */}
-                          {
-                            'Tenant database credentials and raw backups are encrypted with client-held keys. Backup & restore actions are restricted to tenant users.'
-                          }
-                        </p>
-                      </div>
-                    )}
                     {selectedTab === 'dashboard' && selectedWorkspace && (
                       <div className="flex-1 md:pl-3">
                         <TenantDashboardComponent
