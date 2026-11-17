@@ -30,6 +30,7 @@ func Test_GetGlobalAuditLogs_WithDifferentUserRoles_EnforcesPermissionsCorrectly
 	userLogMessage := fmt.Sprintf("Test log with user %s", testID)
 	workspaceLogMessage := fmt.Sprintf("Test log with workspace %s", testID)
 	standaloneLogMessage := fmt.Sprintf("Test log standalone %s", testID)
+	legacyTenantLogMessage := fmt.Sprintf("Database restored for database: tenant-db-%s", testID)
 
 	createAuditLog(t, service, audit_logs_models.AuditEntry{
 		Message:     userLogMessage,
@@ -46,15 +47,21 @@ func Test_GetGlobalAuditLogs_WithDifferentUserRoles_EnforcesPermissionsCorrectly
 		UserID:      nil,
 		WorkspaceID: nil,
 	})
+	createAuditLog(t, service, audit_logs_models.AuditEntry{
+		Message:     legacyTenantLogMessage,
+		UserID:      &adminUser.UserID,
+		WorkspaceID: nil,
+	})
 
 	var response GetAuditLogsResponse
 	test_utils.MakeGetRequestAndUnmarshal(t, router,
 		"/api/v1/audit-logs/global?limit=100", "Bearer "+adminUser.Token, http.StatusOK, &response)
 
-	// Verify only instance-level logs are present (workspace logs are filtered out)
+	// Verify only instance-level logs are present (workspace and orphaned tenant logs are filtered out)
 	messages := extractMessages(response.AuditLogs)
 	assert.Contains(t, messages, userLogMessage)
 	assert.NotContains(t, messages, workspaceLogMessage)
+	assert.NotContains(t, messages, legacyTenantLogMessage)
 	assert.Contains(t, messages, standaloneLogMessage)
 
 	// Test MEMBER cannot access global logs
