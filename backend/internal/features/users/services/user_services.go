@@ -456,7 +456,7 @@ func (s *UserService) GetOrCreateTenantUser(
 		PasswordCreationTime:    time.Now().UTC(),
 		Role:                    users_enums.UserRoleMember,
 		Status:                  users_enums.UserStatusInvited,
-		CanCreateWorkspacesFlag: true,
+		CanCreateWorkspacesFlag: false,
 		CreatedAt:               time.Now().UTC(),
 	}
 

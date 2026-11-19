@@ -88,6 +88,7 @@ export const en = {
       search: 'Search workspaces...',
       notFound: 'No workspaces found',
       createNew: '+ Create new workspace',
+      noWorkspaces: 'You do not belong to any workspace. Please contact your administrator.',
     },
     starButton: {
       label: 'Star on GitHub',

@@ -88,6 +88,7 @@ export const es: typeof en = {
       search: 'Buscar espacios de trabajo...',
       notFound: 'No se encontraron espacios de trabajo',
       createNew: '+ Nuevo espacio de trabajo',
+      noWorkspaces: 'No perteneces a ningún espacio de trabajo. Comunícate con tu administrador.',
     },
     starButton: {
       label: 'Dar estrella en GitHub',

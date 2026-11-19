@@ -88,6 +88,7 @@ export const zh: typeof en = {
       search: '搜索工作区',
       notFound: '未找到工作区',
       createNew: '+ 新建工作区',
+      noWorkspaces: '您不属于任何工作区。请联系您的管理员。',
     },
     starButton: {
       label: '在 GitHub 上加星标',

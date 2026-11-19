@@ -88,6 +88,7 @@ export const fr: typeof en = {
       search: 'Rechercher un espace de travail...',
       notFound: 'Aucun espace de travail trouvé',
       createNew: '+ Nouvel espace de travail',
+      noWorkspaces: "Vous n'appartenez à aucun espace de travail. Veuillez contacter votre administrateur.",
     },
     starButton: {
       label: 'Mettre une étoile',

@@ -135,6 +135,7 @@ export const MainScreenComponent = () => {
   }, [user?.role, selectedTab, selectedWorkspace?.userRole]);
 
   const handleCreateWorkspace = () => {
+    if (!canCreateWorkspace) return;
     setShowCreateWorkspaceDialog(true);
   };
 
@@ -162,7 +163,6 @@ export const MainScreenComponent = () => {
 
   const canCreateWorkspace = Boolean(
     user?.role === UserRole.ADMIN ||
-    user?.canCreateWorkspaces ||
     globalSettings?.isMemberAllowedToCreateWorkspaces,
   );
 
